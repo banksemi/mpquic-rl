@@ -28,6 +28,14 @@ RUN rm -rf /usr/local/bin/mn /usr/local/bin/mnexec \
     && python -m pip install keras-rl \
     && python -m pip install --upgrade --user tensorflow==1.13.1 \
     && update-rc.d openvswitch-switch defaults
+RUN apt-get install software-properties-common -y
+RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
+RUN add-apt-repository \
+   "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+   $(lsb_release -cs) \
+   stable"
+RUN apt-get install docker-ce docker-ce-cli -y
+RUN service docker start
 WORKDIR /var/www
 COPY www/* /var/www
 # Set the locale
