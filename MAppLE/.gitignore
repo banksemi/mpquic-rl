@@ -17,3 +17,7 @@
 *.log
 *.swp
 server/
+
+#Serer build files
+/dash/caddy
+/caddy/caddy/caddy
