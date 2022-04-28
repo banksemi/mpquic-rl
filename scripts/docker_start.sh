@@ -12,11 +12,12 @@ sudo docker build -t mininet ../docker
 cd ../
 # Current Directory: /
 echo "Create mininet container and start it"
+# $PWD/docker/output LinUCB parameter hardcoded in Peekaboo source code /App/output/lin (in.scheduler.go)
 sudo docker run --privileged \
 	--cap-add=ALL \
 	-v /lib/modules:/lib/modules \
 	-v $PWD/docker:/docker \
-	-v $PWD/docker/output:/App/output \ # LinUCB parameter hardcoded in Peekaboo source code /App/output/lin (in.scheduler.go)
+	-v $PWD/docker/output:/App/output \
 	-p 8888:8888 \
 	--add-host quic.clemente.io:10.0.0.20 \
 	--name mininet \
