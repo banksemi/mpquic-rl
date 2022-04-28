@@ -1,0 +1,454 @@
+From 612a826b87e737357a47f72929f6a66f8ef7b095 Mon Sep 17 00:00:00 2001
+From: Flavio <>
+Date: Tue, 14 Apr 2020 15:00:15 +0200
+Subject: [PATCH] -
+
+---
+ ackhandler/received_packet_handler.go        | 11 ++---------
+ ackhandler/sent_packet_handler.go            | 17 +++++++++--------
+ example/client/main.go                       |  6 ++++--
+ example/main.go                              |  2 +-
+ example/test_http/main.go                    |  4 ++--
+ h2quic/request_writer.go                     |  9 +++++----
+ h2quic/roundtrip.go                          |  9 ++++-----
+ internal/flowcontrol/base_flow_controller.go |  6 +++---
+ internal/protocol/server_parameters.go       |  4 ++--
+ net_watcher_linux.go                         |  5 +++++
+ packet_packer.go                             |  6 ++++--
+ scheduler.go                                 | 17 ++++++++++++++++-
+ session.go                                   |  6 +++---
+ stream.go                                    |  6 +++---
+ stream_framer.go                             |  9 ++++++++-
+ 15 files changed, 71 insertions(+), 46 deletions(-)
+
+diff --git a/ackhandler/received_packet_handler.go b/ackhandler/received_packet_handler.go
+index 46a8ace1..7bd2ca68 100644
+--- a/ackhandler/received_packet_handler.go
++++ b/ackhandler/received_packet_handler.go
+@@ -77,19 +77,12 @@ func (h *receivedPacketHandler) ReceivedPacket(packetNumber protocol.PacketNumbe
+ 	}
+ 
+ 
+-	if h.disableRecoveredFrames || !recovered {
++	if !recovered {
+ 		// we received a packet normally
+ 		if err := h.packetHistory.ReceivedPacket(packetNumber); err != nil {
+ 			return err
+ 		}
+ 		h.maybeQueueAck(packetNumber, shouldInstigateAck)
+-	} else {
+-		log.Printf("MAYBE QUEUE RECOVERED FRAME")
+-		// we received a packet by recovering it
+-		if err := h.recoveredPacketHistory.RecoveredPacket(packetNumber); err != nil {
+-			return err
+-		}
+-		h.maybeQueueRecovered(packetNumber, recovered)
+ 	}
+ 	return nil
+ }
+@@ -253,4 +246,4 @@ func (h *receivedPacketHandler) SentRecoveredFrame(f *wire.RecoveredFrame) {
+ 		return
+ 	}
+ 	log.Printf("sent recovered frame")
+-}
+\ No newline at end of file
++}
+diff --git a/ackhandler/sent_packet_handler.go b/ackhandler/sent_packet_handler.go
+index 24c00a00..b4ad8a57 100644
+--- a/ackhandler/sent_packet_handler.go
++++ b/ackhandler/sent_packet_handler.go
+@@ -86,7 +86,6 @@ type sentPacketHandler struct {
+ 	tlpCount uint32
+ 
+ 	// Was the alarm coming from the TLP computation?
+-	tlpAlarm bool
+ 
+ 	// The time at which the next packet will be considered lost based on early transmit or exceeding the reordering window in time.
+ 	lossTime time.Time
+@@ -96,6 +95,8 @@ type sentPacketHandler struct {
+ 
+ 	// The alarm timeout
+ 	alarm time.Time
++	alarmSetOn time.Time
++
+ 
+ 	onPacketLost func(protocol.PacketNumber)
+ 	onPacketReceived func(protocol.PacketNumber)
+@@ -391,7 +392,6 @@ func (h *sentPacketHandler) hasOutstandingRetransmittablePacket() bool {
+ }
+ 
+ func (h *sentPacketHandler) updateLossDetectionAlarm() {
+-	h.tlpAlarm = false
+ 	// Cancel the alarm if no packets are outstanding
+ 	if h.packetHistory.Len() == 0 {
+ 		h.alarm = time.Time{}
+@@ -404,13 +404,12 @@ func (h *sentPacketHandler) updateLossDetectionAlarm() {
+ 		h.alarm = h.lossTime
+ 	} else if h.rttStats.SmoothedRTT() != 0 && h.tlpCount < maxTailLossProbes {
+ 		// TLP
+-		h.tlpAlarm = true
+ 		h.alarm = h.lastSentTime.Add(h.computeTLPTimeout())
+ 	} else {
+ 		// RTO
+ 		// check RTO timer...
+-
+-		firstPacketTime := h.packetHistory.Front().Value.SendTime
++		h.alarm = h.lastSentTime.Add(utils.MaxDuration(h.ComputeRTOTimeout(), minRetransmissionTime))
++	/*	firstPacketTime := h.packetHistory.Front().Value.SendTime
+ 		rtoAlarm := firstPacketTime.Add(utils.MaxDuration(h.ComputeRTOTimeout(), minRetransmissionTime))
+ 		h.alarm = utils.MaxTime(rtoAlarm, time.Now().Add(1*time.Microsecond))
+ 
+@@ -419,10 +418,11 @@ func (h *sentPacketHandler) updateLossDetectionAlarm() {
+ 		if tlpAlarm.Before(h.alarm) {
+ 			h.alarm = utils.MaxTime(tlpAlarm, time.Now().Add(1*time.Microsecond))
+ 			h.tlpAlarm = true
+-		}
++		}*/
+ 
+ 
+ 	}
++	h.alarmSetOn = time.Now()
+ }
+ 
+ func (h *sentPacketHandler) detectLostPackets() {
+@@ -441,7 +441,7 @@ func (h *sentPacketHandler) detectLostPackets() {
+ 		}
+ 
+ 		timeSinceSent := now.Sub(packet.SendTime)
+-		if (h.useFastRetransmit && h.LargestAcked >= kReorderingThreshold && packet.PacketNumber <= h.LargestAcked - kReorderingThreshold) || timeSinceSent > delayUntilLost {
++		if (false && h.useFastRetransmit && h.LargestAcked >= kReorderingThreshold && packet.PacketNumber <= h.LargestAcked - kReorderingThreshold) || timeSinceSent > delayUntilLost {
+ 			// Update statistics
+ 			h.losses++
+ 			lostPackets = append(lostPackets, el)
+@@ -504,13 +504,14 @@ func (h *sentPacketHandler) OnAlarm() {
+ 		// Early retransmit or time loss detection
+ 		h.detectLostPackets()
+ 
+-	} else if h.tlpAlarm && h.tlpCount < maxTailLossProbes {
++	} else if h.tlpCount < maxTailLossProbes {
+ 		// TLP
+ 		h.retransmitTLP()
+ 		h.tlpCount++
+ 	} else {
+ 		// RTO
+ 		potentiallyFailed := false
++		
+ 		if h.onRTOCallback != nil {
+ 			potentiallyFailed = h.onRTOCallback(h.lastSentTime)
+ 		}
+diff --git a/example/client/main.go b/example/client/main.go
+index eb58dd40..90a08790 100644
+--- a/example/client/main.go
++++ b/example/client/main.go
+@@ -8,7 +8,7 @@ import (
+ 	"net/http"
+ 	"os"
+ 	"sync"
+-
++	"crypto/tls"
+ 	quic "github.com/lucas-clemente/quic-go"
+ 
+ 	"github.com/lucas-clemente/quic-go/h2quic"
+@@ -49,7 +49,9 @@ func main() {
+ 	}
+ 
+ 	hclient := &http.Client{
+-		Transport: &h2quic.RoundTripper{QuicConfig: quicConfig},
++		Transport: &h2quic.RoundTripper{QuicConfig: quicConfig,
++		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, },
++
+ 	}
+ 
+ 	var wg sync.WaitGroup
+diff --git a/example/main.go b/example/main.go
+index 8becf317..e954bff7 100644
+--- a/example/main.go
++++ b/example/main.go
+@@ -168,7 +168,7 @@ func main() {
+ 	http.Handle("/", http.FileServer(http.Dir(*www)))
+ 
+ 	if len(bs) == 0 {
+-		bs = binds{"localhost:6121"}
++		bs = binds{"0.0.0.0:6121"}
+ 	}
+ 
+ 	var wg sync.WaitGroup
+diff --git a/example/test_http/main.go b/example/test_http/main.go
+index 8c94e7cd..2fb6d33e 100644
+--- a/example/test_http/main.go
++++ b/example/test_http/main.go
+@@ -193,7 +193,7 @@ func main() {
+ 	fecSchemeArg = *fecSchemeFlag
+ 	maxPathID = 0
+ 	if *multipath {
+-		maxPathID = 3
++		maxPathID = 2
+ 		version = protocol.VersionMP
+ 	} else {
+ 		version = protocol.Version39
+@@ -222,4 +222,4 @@ func main() {
+ 	} else {
+ 		mainClient()
+ 	}
+-}
+\ No newline at end of file
++}
+diff --git a/h2quic/request_writer.go b/h2quic/request_writer.go
+index 3f323691..4c6b6ce9 100644
+--- a/h2quic/request_writer.go
++++ b/h2quic/request_writer.go
+@@ -10,7 +10,8 @@ import (
+ 
+ 	"golang.org/x/net/http2"
+ 	"golang.org/x/net/http2/hpack"
+-	"golang.org/x/net/lex/httplex"
++	"golang.org/x/net/http/httpguts"
++	//"golang.org/x/net/lex/httpguts"
+ 
+ 	quic "github.com/lucas-clemente/quic-go"
+ 	"github.com/lucas-clemente/quic-go/internal/protocol"
+@@ -62,7 +63,7 @@ func (w *requestWriter) encodeHeaders(req *http.Request, addGzipHeader bool, tra
+ 	if host == "" {
+ 		host = req.URL.Host
+ 	}
+-	host, err := httplex.PunycodeHostPort(host)
++	host, err := httpguts.PunycodeHostPort(host)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -87,11 +88,11 @@ func (w *requestWriter) encodeHeaders(req *http.Request, addGzipHeader bool, tra
+ 	// potentially pollute our hpack state. (We want to be able to
+ 	// continue to reuse the hpack encoder for future requests)
+ 	for k, vv := range req.Header {
+-		if !httplex.ValidHeaderFieldName(k) {
++		if !httpguts.ValidHeaderFieldName(k) {
+ 			return nil, fmt.Errorf("invalid HTTP header name %q", k)
+ 		}
+ 		for _, v := range vv {
+-			if !httplex.ValidHeaderFieldValue(v) {
++			if !httpguts.ValidHeaderFieldValue(v) {
+ 				return nil, fmt.Errorf("invalid HTTP header value %q for header %q", v, k)
+ 			}
+ 		}
+diff --git a/h2quic/roundtrip.go b/h2quic/roundtrip.go
+index 9ac5f193..c0b9d405 100644
+--- a/h2quic/roundtrip.go
++++ b/h2quic/roundtrip.go
+@@ -10,8 +10,7 @@ import (
+ 	"sync"
+ 
+ 	quic "github.com/lucas-clemente/quic-go"
+-
+-	"golang.org/x/net/lex/httplex"
++"golang.org/x/net/http/httpguts"
+ )
+ 
+ type roundTripCloser interface {
+@@ -75,11 +74,11 @@ func (r *RoundTripper) RoundTripOpt(req *http.Request, opt RoundTripOpt) (*http.
+ 
+ 	if req.URL.Scheme == "https" {
+ 		for k, vv := range req.Header {
+-			if !httplex.ValidHeaderFieldName(k) {
++			if !httpguts.ValidHeaderFieldName(k) {
+ 				return nil, fmt.Errorf("quic: invalid http header field name %q", k)
+ 			}
+ 			for _, v := range vv {
+-				if !httplex.ValidHeaderFieldValue(v) {
++				if !httpguts.ValidHeaderFieldValue(v) {
+ 					return nil, fmt.Errorf("quic: invalid http header field value %q for key %v", v, k)
+ 				}
+ 			}
+@@ -164,5 +163,5 @@ func validMethod(method string) bool {
+ 
+ // copied from net/http/http.go
+ func isNotToken(r rune) bool {
+-	return !httplex.IsTokenRune(r)
++	return !httpguts.IsTokenRune(r)
+ }
+diff --git a/internal/flowcontrol/base_flow_controller.go b/internal/flowcontrol/base_flow_controller.go
+index 20a0b363..a486b3b4 100644
+--- a/internal/flowcontrol/base_flow_controller.go
++++ b/internal/flowcontrol/base_flow_controller.go
+@@ -77,9 +77,9 @@ func (c *baseFlowController) getWindowUpdate(force bool) protocol.ByteCount {
+ 		return 0
+ 	}
+ 	// If we forced the result, don't go further
+-	//if force && diff >= (c.receiveWindowIncrement/2) {
+-	//	return c.receiveWindow
+-	//}
++	if force && diff >= (c.receiveWindowIncrement/2) {
++		return c.receiveWindow
++	}
+ 
+ 	c.maybeAdjustWindowIncrement()
+ 	c.receiveWindow = c.bytesRead + c.receiveWindowIncrement
+diff --git a/internal/protocol/server_parameters.go b/internal/protocol/server_parameters.go
+index fc3d7c75..f488a486 100644
+--- a/internal/protocol/server_parameters.go
++++ b/internal/protocol/server_parameters.go
+@@ -32,11 +32,11 @@ const AckSendDelay = 25 * time.Millisecond
+ 
+ // ReceiveStreamFlowControlWindow is the stream-level flow control window for receiving data
+ // This is the value that Google servers are using
+-const ReceiveStreamFlowControlWindow = (1 << 10) * 32 // 32 kB
++const ReceiveStreamFlowControlWindow = (1 << 10) * 512 // 32 kB
+ 
+ // ReceiveConnectionFlowControlWindow is the connection-level flow control window for receiving data
+ // This is the value that Google servers are using
+-const ReceiveConnectionFlowControlWindow = (1 << 10) * 48 // 48 kB
++const ReceiveConnectionFlowControlWindow = (1 << 10) * 768 // 48 kB
+ 
+ // DefaultMaxReceiveStreamFlowControlWindowServer is the default maximum stream-level flow control window for receiving data, for the server
+ // This is the value that Google servers are using
+diff --git a/net_watcher_linux.go b/net_watcher_linux.go
+index 22bc0cd2..89af91aa 100644
+--- a/net_watcher_linux.go
++++ b/net_watcher_linux.go
+@@ -89,6 +89,11 @@ func (nw *netWatcher) run() {
+ 				continue
+ 			}
+ 			for _, addr := range addrs {
++				// Keine Interfaces mit Uni Hannover IP nehmen. Sonst wird ein Pfad ausserhalb von emulab erstellt 
++				if addr.IP != nil && strings.Split(addr.IP.String(),".")[0] == "130" {
++					continue
++				}
++
+ 				utils.Infof("%v", addr)
+ 				locAddr, err := nw.pconnMgr.createPconn(addr.IP)
+ 				if err == nil {
+diff --git a/packet_packer.go b/packet_packer.go
+index 637be887..878b778e 100644
+--- a/packet_packer.go
++++ b/packet_packer.go
+@@ -321,8 +321,10 @@ func (p *packetPacker) composeNextPacket(
+ 	if !canSendStreamFrames {
+ 		return payloadFrames, nil
+ 	}
+-
+-	hasStreamDataToSend := p.streamFramer.HasFramesToSend()
++	hasStreamDataToSend := false
++if false {
++	hasStreamDataToSend = p.streamFramer.HasFramesToSend()
++}
+ 
+ 	var fecFrames []*wire.FECFrame
+ 	var takenPayload protocol.ByteCount
+diff --git a/scheduler.go b/scheduler.go
+index ca3acf66..f7a76ab2 100644
+--- a/scheduler.go
++++ b/scheduler.go
+@@ -24,6 +24,7 @@ type scheduler struct {
+ 	quotas map[protocol.PathID]uint
+ 	lossRateScheduler *lossBasedScheduler
+ 	redundancyController fec.RedundancyController
++	lastpath *path
+ }
+ 
+ func (sch *scheduler) setup() {
+@@ -698,7 +699,21 @@ func (sch *scheduler) sendPacket(s sessionI) error {
+ 		hasFECFrames := len(fecFramer.transmissionQueue) > 0
+ 
+ 		// Select the path here
+-		pth = sch.selectPath(s, hasRetransmission, hasStreamRetransmission, hasFECFrames, fromPth)
++		if len(s.Paths()) > 2 {
++			if (s.GetFECFrameworkSender().fecScheduler.GetNextFECGroupOffset() == 0 && hasFECFrames == false || sch.lastpath == nil) {
++				pth = sch.selectPath(s, hasRetransmission, hasStreamRetransmission, hasFECFrames, fromPth)
++				sch.lastpath = pth
++			} else {
++				if !sch.lastpath.SendingAllowed() {
++					pth = sch.selectPath(s, hasRetransmission, hasStreamRetransmission, hasFECFrames, fromPth)
++					sch.lastpath = pth
++				} else {
++					pth = sch.lastpath
++				}
++			}
++		} else {
++			pth = sch.selectPath(s, hasRetransmission, hasStreamRetransmission, hasFECFrames, fromPth)
++		}
+ 
+ 		// XXX No more path available, should we have a new QUIC error message?
+ 		if pth == nil {
+diff --git a/session.go b/session.go
+index b8b3fe54..3d5a85ab 100644
+--- a/session.go
++++ b/session.go
+@@ -568,7 +568,7 @@ runLoop:
+ 
+ 
+ 		//  If we are application-limited, we try to opportunistically send reinjections of the in-flight packets on shorter paths
+-		if !s.streamFramer.HasFramesToSend() {
++		if false && !s.streamFramer.HasFramesToSend() && false {
+ 			// For each path, we take the packets currently in flight and try to reinject them if they have not already been reinjected
+ 			for _, pathToReinject := range s.paths {
+ 				for _, pkt := range pathToReinject.sentPacketHandler.GetPacketsInFlight() {
+@@ -668,7 +668,7 @@ func (s *session) handlePacketImpl(p *receivedPacket) error {
+ 	var ok bool
+ 	var err error
+ 
+-	if p.recovered {
++	if  false && p.recovered {
+ 		pth = s.paths[protocol.InitialPathID]
+ 	} else {
+ 
+@@ -1348,4 +1348,4 @@ func GetFECSchemeFromID(id protocol.FECSchemeID) (fec.FECScheme, error) {
+ 	default:
+ 		return nil, errors.New(fmt.Sprintf("There is no FEC Scheme "))
+ 	}
+-}
+\ No newline at end of file
++}
+diff --git a/stream.go b/stream.go
+index bff6e782..9c0f4513 100644
+--- a/stream.go
++++ b/stream.go
+@@ -163,7 +163,7 @@ func (s *stream) Read(p []byte) (int, error) {
+ 	for bytesRead < len(p) {
+ 		s.mutex.Lock()
+ 		var frame *wire.StreamFrame
+-		if !s.finReceived.Get() && uint64(s.flowController.GetHighestReceived()) - uint64(s.readOffset) < s.replayBufferSize {
++		if false && !s.finReceived.Get() && uint64(s.flowController.GetHighestReceived()) - uint64(s.readOffset) < s.replayBufferSize {
+ 			frame = nil
+ 		} else {
+ 			frame = s.frameQueue.Head()
+@@ -226,7 +226,7 @@ func (s *stream) Read(p []byte) (int, error) {
+ 				}
+ 			}
+ 			s.mutex.Lock()
+-			if !s.finReceived.Get() && uint64(s.flowController.GetHighestReceived()) - uint64(s.readOffset) < s.replayBufferSize {
++			if false && !s.finReceived.Get() && uint64(s.flowController.GetHighestReceived()) - uint64(s.readOffset) < s.replayBufferSize {
+ 				frame = nil
+ 			} else {
+ 				frame = s.frameQueue.Head()
+@@ -255,7 +255,7 @@ func (s *stream) Read(p []byte) (int, error) {
+ 		s.readOffset += protocol.ByteCount(m)
+ 		// when a RST_STREAM was received, the was already informed about the final byteOffset for this stream
+ 		if !s.resetRemotely.Get() {
+-			if s.replayBufferSize == 0 {
++			if s.replayBufferSize == 0 || true{
+ 				s.flowController.AddBytesRead(protocol.ByteCount(m))
+ 			} else {
+ 				oldBufferEnd := s.bufferEnd
+diff --git a/stream_framer.go b/stream_framer.go
+index 2183883d..66c8b40b 100644
+--- a/stream_framer.go
++++ b/stream_framer.go
+@@ -131,8 +131,15 @@ func (f *streamFramer) HasFramesForRetransmission() bool {
+ 	return len(f.retransmissionQueue) > 0
+ }
+ 
+-func (f *streamFramer) HasFramesToSend() bool {
++func (f *streamFramer) HasFramesToSend() bool {	
++	if f.streamsMap == nil || f.streamsMap.openStreams == nil{
++		return false
++	}
+ 	for _, id := range f.streamsMap.openStreams {
++		if f.streamsMap.streams == nil {
++			return false
++		}
++
+ 		if s, ok := f.streamsMap.streams[id]; ok && s.LenOfDataForWriting() > 0 {
+ 			return true
+ 		}
+-- 
+2.26.1
+
