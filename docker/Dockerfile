@@ -36,11 +36,15 @@ RUN sed -i -e 's/# en_US ISO-8859-1/en_US ISO-8859-1/' /etc/locale.gen && \
 ENV LANG en_US
 ENV LANGUAGE en_US:en
 ENV LC_ALL en_US
-WORKDIR /notebooks
-COPY notebooks/*.ipynb /notebooks/
-WORKDIR /App
-COPY . /App
-WORKDIR /notebooks
+
+# Default setting of peekaboo
+# WORKDIR /notebooks
+# COPY notebooks/*.ipynb /notebooks/
+# WORKDIR /App
+# COPY . /App
+# WORKDIR /notebooks
+RUN mkdir -p /docker/notebooks
+WORKDIR /docker/notebooks
 
 RUN jupyter notebook --generate-config
 RUN echo '\

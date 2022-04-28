@@ -2,15 +2,15 @@ import time
 import argparse
 from basicTopo import setup_environment
 
-SERVER_CMD = "/App/quic/server_mt"
-CERTPATH = "--certpath /App/quic/quic_go_certs"
+SERVER_CMD = "/docker/quic/server_mt"
+CERTPATH = "--certpath /docker/quic/quic_go_certs"
 SCH = "-scheduler %s"
 ARGS = "-bind :6121 -www /var/www/"
-END = "> /App/logs/server.logs 2>&1"
+END = "> /docker/logs/server.logs 2>&1"
 
 BASIC_DELAY = 10
 
-CLIENT_CMD = "/App/quic/client_mt -m https://10.0.0.20:6121/demo  > /App/logs/client.logs 2>&1"
+CLIENT_CMD = "/docker/quic/client_mt -m https://10.0.0.20:6121/demo  > /docker/logs/client.logs 2>&1"
 
 TCP_SERVER_CMD = "cd /var/www && python -m SimpleHTTPServer 80 &"
 TCP_CLIENT_CMD = "curl -s -o /dev/null 10.0.0.20/demo &"
