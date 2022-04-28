@@ -35,7 +35,6 @@ RUN add-apt-repository \
    $(lsb_release -cs) \
    stable"
 RUN apt-get install docker-ce docker-ce-cli -y
-RUN service docker start
 WORKDIR /var/www
 COPY www/* /var/www
 # Set the locale
@@ -60,4 +59,4 @@ from IPython.lib import passwd \n\
 password = passwd("mpquic") \n\
 c.NotebookApp.password = password' >> /root/.jupyter/jupyter_notebook_config.py
 
-CMD service openvswitch-switch start && jupyter notebook --ip 0.0.0.0 --allow-root
+CMD service docker start && service openvswitch-switch start && jupyter notebook --ip 0.0.0.0 --allow-root
