@@ -41,4 +41,11 @@ COPY notebooks/*.ipynb /notebooks/
 WORKDIR /App
 COPY . /App
 WORKDIR /notebooks
+
+RUN jupyter notebook --generate-config
+RUN echo '\
+from IPython.lib import passwd \n\
+password = passwd("mpquic") \n\
+c.NotebookApp.password = password' >> /root/.jupyter/jupyter_notebook_config.py
+
 CMD service openvswitch-switch start && jupyter notebook --ip 0.0.0.0 --allow-root
