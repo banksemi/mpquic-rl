@@ -12,6 +12,16 @@ import (
 	"github.com/lucas-clemente/quic-go/internal/protocol"
 	"github.com/lucas-clemente/quic-go/internal/utils"
 	"github.com/lucas-clemente/quic-go/internal/wire"
+
+	"github.com/aunum/gold/pkg/v1/agent/deepq"
+	"github.com/aunum/gold/pkg/v1/track"
+	"github.com/aunum/gold/pkg/v1/common/require"
+	envv1 "github.com/aunum/gold/pkg/v1/env"
+
+	goldlog "github.com/aunum/log"
+	
+	"gorgonia.org/tensor"
+
 )
 
 type schedulerInterface interface {
@@ -25,6 +35,26 @@ type scheduler struct {
 	quotas               map[protocol.PathID]uint
 	lossRateScheduler    *lossBasedScheduler
 	redundancyController fec.RedundancyController
+}
+
+var episodes track.Episodes;
+var timesteps track.Timesteps;
+var agent *deepq.Agent;
+func SetupRL() {
+	s, err := envv1.NewLocalServer(envv1.GymServerConfig)
+	require.NoError(err)
+	defer s.Close()
+
+	env, err := s.Make("CartPole-v0",
+		envv1.WithNormalizer(envv1.NewExpandDimsNormalizer(0)),
+	)
+	require.NoError(err)
+
+	agent, err = deepq.NewAgent(deepq.DefaultAgentConfig, env)
+	require.NoError(err)
+
+	episodes = agent.MakeEpisodes(1000)
+	// timesteps:= episode.Steps(1000)
 }
 
 func (sch *scheduler) setup() {
@@ -145,6 +175,156 @@ pathLoop:
 
 	return selectedPath
 
+}
+
+func (sch *scheduler) selectPathReinforcementLearning(s sessionI, hasRetransmission bool, hasStreamRetransmission bool, fromPth *path) *path {
+	paths := s.Paths()
+	// XXX Avoid using PathID 0 if there is more than 1 path
+	if len(paths) <= 1 {
+		if !hasRetransmission && !paths[protocol.InitialPathID].SendingAllowed() {
+			return nil
+		}
+		return paths[protocol.InitialPathID]
+	}
+
+	// FIXME Only works at the beginning... Cope with new paths during the connection
+	if hasRetransmission && hasStreamRetransmission && fromPth.rttStats.SmoothedRTT() == 0 {
+		// Is there any other path with a lower number of packet sent?
+		currentQuota := sch.quotas[fromPth.pathID]
+		for pathID, pth := range paths {
+			if pathID == protocol.InitialPathID || pathID == fromPth.pathID {
+				continue
+			}
+			// The congestion window was checked when duplicating the packet
+			if sch.quotas[pathID] < currentQuota {
+				return pth
+			}
+		}
+	}
+
+	var selectedPath *path
+	var lowerRTT time.Duration
+	var currentRTT time.Duration
+	selectedPathID := protocol.PathID(255)
+
+	considerBackup := false
+	considerPf := false
+	needBackup := true
+	havePf := false
+
+pathLoop:
+	for pathID, pth := range paths {
+		// If this path is potentially failed, do not consider it for sending
+		if !considerPf && pth.potentiallyFailed.Get() {
+			havePf = true
+			continue pathLoop
+		}
+
+		// XXX Prevent using initial pathID if multiple paths
+		if pathID == protocol.InitialPathID {
+			continue pathLoop
+		}
+
+		if !considerBackup && pth.backup.Get() {
+			continue pathLoop
+		}
+
+		// At least one non-backup path is active and did not faced RTO
+		if !pth.facedRTO.Get() {
+			needBackup = false
+		}
+
+		// It the preferred path never faced RTO, and this one did, then ignore it
+		if selectedPath != nil && !selectedPath.facedRTO.Get() && pth.facedRTO.Get() {
+			continue
+		}
+
+		// Don't block path usage if we retransmit, even on another path
+		if !hasRetransmission && !pth.SendingAllowed() {
+			continue pathLoop
+		}
+
+		currentRTT = pth.rttStats.SmoothedRTT()
+
+		// Prefer staying single-path if not blocked by current path
+		// Don't consider this sample if the smoothed RTT is 0
+		if lowerRTT != 0 && currentRTT == 0 {
+			continue pathLoop
+		}
+
+		// Case if we have multiple paths unprobed
+		if currentRTT == 0 {
+			currentQuota, ok := sch.quotas[pathID]
+			if !ok {
+				sch.quotas[pathID] = 0
+				currentQuota = 0
+			}
+			lowerQuota, _ := sch.quotas[selectedPathID]
+			if selectedPath != nil && currentQuota > lowerQuota {
+				continue pathLoop
+			}
+		}
+
+		if currentRTT != 0 && lowerRTT != 0 && selectedPath != nil && currentRTT >= lowerRTT {
+			continue pathLoop
+		}
+
+		// Update
+		lowerRTT = currentRTT
+		selectedPath = pth
+		selectedPathID = pathID
+	}
+
+	if !considerBackup && needBackup {
+		// Restart decision, but consider backup paths also, even if an active path was selected
+		// Because all current active paths might not be reliable...
+		considerBackup = true
+		goto pathLoop
+	}
+
+	if selectedPath == nil && considerBackup && havePf && !considerPf {
+		// All paths are potentially failed... Try to resent!
+		considerPf = true
+		goto pathLoop
+	}
+	i := 0
+	var features [4]float32;
+	for _, pth := range paths {
+		if (i >= 2) {
+			break;
+		}
+		rtt := float32(pth.rttStats.SmoothedRTT().Milliseconds())
+		cwnd :=  float32(pth.GetCongestionWindow())
+		features[i*2+0] = rtt;
+		features[i*2+1] = cwnd;
+		i++;
+	}
+	// timesteps:= episode.Steps(env.MaxSteps())
+	
+	// Set state vactor
+	x := tensor.New(tensor.WithShape(1,4), tensor.WithBacking([]float32{features[0],features[1], features[2], features[3]}))
+
+	// Perform Action
+	action, _ := agent.Action(x)
+
+	// Reward
+	var outcome *envv1.Outcome = new(envv1.Outcome)
+	outcome.Action = action
+	outcome.Reward = 1
+	outcome.Done = false
+
+	// The state changed due to the action must be entered
+	outcome.Observation =  tensor.New(tensor.WithShape(1,4), tensor.WithBacking([]float32{features[0],features[1], features[2], features[3]}))
+
+	// Store event to replay buffer
+	event := deepq.NewEvent(x, action, outcome)
+	agent.Remember(event)
+	agent.Learn()
+
+	goldlog.Infof("State: %s", x)
+	goldlog.Infof("Path count: %d Select %d Action %d", len(paths), selectedPathID, action)
+	
+	return selectedPath
 }
 
 func (sch *scheduler) selectPathLowLatency(s sessionI, hasRetransmission bool, hasStreamRetransmission bool, fromPth *path) *path {
@@ -567,6 +747,8 @@ func (sch *scheduler) selectPath(s sessionI, hasRetransmission bool, hasStreamRe
 		return sch.selectPathS_EDPF(s, hasRetransmission, hasStreamRetransmission, hasFECFrame, fromPth)
 	case protocol.SchedSingle:
 		return s.Paths()[0]
+	case protocol.SchedRL:
+		return sch.selectPathReinforcementLearning(s, hasRetransmission, hasStreamRetransmission, fromPth)
 	default:
 		panic("unknown scheduler selected")
 	}

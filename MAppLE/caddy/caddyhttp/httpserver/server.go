@@ -115,6 +115,8 @@ func NewServer(addr string, group []*SiteConfig) (*Server, error) {
 
 			fs, rc := quic.FECConfigFromString(FECConfig)
 
+			quic.SetupRL()
+
 			config := quic.Config{
 				MaxPathID:                   maxPathID,
 				SchedulingSchemeName:        MPQUIC_SCHED,

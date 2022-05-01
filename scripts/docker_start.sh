@@ -16,6 +16,9 @@ echo "Create mininet container and start it"
 sudo docker run --privileged \
 	--cap-add=ALL \
 	-v /lib/modules:/lib/modules \
+	-v $PWD/lib-docker:/var/lib/docker \
+	-v $PWD/logs:/logs \
+	-v $PWD/MAppLE:/MAppLE \
 	-v $PWD/docker:/docker \
 	-v $PWD/docker/output:/App/output \
 	-p 8888:8888 \

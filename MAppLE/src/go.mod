@@ -4,6 +4,7 @@ go 1.14
 
 require (
 	github.com/atgjack/prob v0.0.0-20161220081030-6cfd5d401186
+	github.com/aunum/gold v0.0.0-20201022151355-225e849d893f // indirect
 	github.com/bifurcation/mint v0.0.0-20200214151656-93c820e81448
 	github.com/golang/mock v1.4.3
 	github.com/hashicorp/golang-lru v0.5.4

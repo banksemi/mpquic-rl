@@ -5,14 +5,14 @@
 #
 
 # Unsecure listener for debugging purposes
-http://dashserver:4040 {
-    root video/
+http://:4040 {
+    root video1s/
     log stdout
 }
 
 # Secure listener, required for TLS and QUIC connections
-https://dashserver:4242 {
-    root video/
+https://:4242 {
+    root video1s/
     tls cert.pem privkey.pem
     log stdout
 }

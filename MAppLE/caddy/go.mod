@@ -3,6 +3,7 @@ module github.com/caddyserver/caddy
 go 1.13
 
 require (
+	github.com/aunum/gold v0.0.0-20201022151355-225e849d893f // indirect
 	github.com/dustin/go-humanize v1.0.0
 	github.com/flynn/go-shlex v0.0.0-20150515145356-3f9db97f8568
 	github.com/go-acme/lego/v3 v3.2.0
@@ -23,7 +24,7 @@ require (
 	golang.org/x/term v0.0.0-20220411215600-e5f449aeb171 // indirect
 	gopkg.in/mcuadros/go-syslog.v2 v2.2.1
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
-	gopkg.in/yaml.v2 v2.2.4
+	gopkg.in/yaml.v2 v2.2.8
 )
 
 replace github.com/lucas-clemente/quic-go => ../src

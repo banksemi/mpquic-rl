@@ -18,6 +18,7 @@ const (
 	SchedS_IOD            = 9
 	SchedIOD              = 10
 	SchedO_IOD            = 11
+	SchedRL               = 12
 	SchedSingle           = 100 // debugging
 )
 
@@ -60,6 +61,8 @@ func ParseSchedulingScheme(scheme string) SchedulingSchemeID {
 		return SchedIOD
 	case "o-iod":
 		return SchedO_IOD
+	case "rl":
+		return SchedRL
 	case "single":
 		return SchedSingle
 	}
