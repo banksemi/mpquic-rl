@@ -45,21 +45,13 @@ func RLNewEvent(pathID protocol.PathID, packetnumber protocol.PacketNumber, stat
 }
 
 var agent *deepq.Agent;
+
 func SetupRL() {
-	s, err := envv1.NewLocalServer(envv1.GymServerConfig)
+	newagent, err := deepq.NewAgent(deepq.DefaultAgentConfig)
+	agent = newagent
 	require.NoError(err)
-	defer s.Close()
-
-	env, err := s.Make("CartPole-v0",
-		envv1.WithNormalizer(envv1.NewExpandDimsNormalizer(0)),
-	)
-	require.NoError(err)
-
-	agent, err = deepq.NewAgent(deepq.DefaultAgentConfig, env)
-	require.NoError(err)
-
-	// episodes = agent.MakeEpisodes(1000)
-	// timesteps:= episode.Steps(1000)
+	go SetupThreadRL()
+	goldlog.Infof("쓰레드 실행 명령")
 }
 
 func (sch *scheduler) receivedACKForRL(paths map[protocol.PathID]*path, ackFrame *wire.AckFrame) {

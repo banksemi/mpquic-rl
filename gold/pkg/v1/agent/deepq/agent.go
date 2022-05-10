@@ -2,7 +2,7 @@
 package deepq
 
 import (
-	"fmt"
+	"math/rand"
 
 	"github.com/aunum/gold/pkg/v1/dense"
 	"github.com/aunum/goro/pkg/v1/model"
@@ -10,7 +10,6 @@ import (
 	agentv1 "github.com/aunum/gold/pkg/v1/agent"
 	"github.com/aunum/gold/pkg/v1/common"
 	"github.com/aunum/gold/pkg/v1/common/num"
-	envv1 "github.com/aunum/gold/pkg/v1/env"
 	"github.com/aunum/log"
 	"gorgonia.org/tensor"
 )
@@ -32,12 +31,14 @@ type Agent struct {
 	// Epsilon is the rate at which the agent explores vs exploits.
 	Epsilon common.Schedule
 
-	env               *envv1.Env
 	epsilon           float32
 	updateTargetSteps int
 	batchSize         int
 	memory            *Memory
 	steps             int
+
+	StateShape        []int
+	ActionShape       []int
 }
 
 // Hyperparameters for the dqn agent.
@@ -75,6 +76,10 @@ type AgentConfig struct {
 
 	// PolicyConfig for the agent.
 	PolicyConfig *PolicyConfig
+
+	StateShape []int
+	ActionShape []int
+
 }
 
 // DefaultAgentConfig is the default config for a dqn agent.
@@ -82,28 +87,27 @@ var DefaultAgentConfig = &AgentConfig{
 	Hyperparameters: DefaultHyperparameters,
 	PolicyConfig:    DefaultPolicyConfig,
 	Base:            agentv1.NewBase("DeepQ"),
+	StateShape:		 []int{1, 4},
+	ActionShape:	 []int{1, 2},
 }
 
 // NewAgent returns a new dqn agent.
-func NewAgent(c *AgentConfig, env *envv1.Env) (*Agent, error) {
+func NewAgent(c *AgentConfig) (*Agent, error) {
 	if c == nil {
 		c = DefaultAgentConfig
 	}
 	if c.Base == nil {
 		c.Base = DefaultAgentConfig.Base
 	}
-	if env == nil {
-		return nil, fmt.Errorf("environment cannot be nil")
-	}
 	if c.Epsilon == nil {
 		c.Epsilon = common.DefaultDecaySchedule()
 	}
-	policy, err := MakePolicy("online", c.PolicyConfig, c.Base, env)
+	policy, err := MakePolicy("online", c.PolicyConfig, c.Base, c.StateShape, c.ActionShape)
 	if err != nil {
 		return nil, err
 	}
 	c.PolicyConfig.Track = false
-	targetPolicy, err := MakePolicy("target", c.PolicyConfig, c.Base, env)
+	targetPolicy, err := MakePolicy("target", c.PolicyConfig, c.Base, c.StateShape, c.ActionShape)
 	if err != nil {
 		return nil, err
 	}
@@ -116,9 +120,10 @@ func NewAgent(c *AgentConfig, env *envv1.Env) (*Agent, error) {
 		TargetPolicy:      targetPolicy,
 		Epsilon:           c.Epsilon,
 		epsilon:           c.Epsilon.Initial(),
-		env:               env,
 		updateTargetSteps: c.UpdateTargetSteps,
 		batchSize:         c.PolicyConfig.BatchSize,
+		StateShape:	       c.StateShape,
+		ActionShape:       c.ActionShape,
 	}, nil
 }
 
@@ -195,10 +200,7 @@ func (a *Agent) Action(state *tensor.Dense) (action int, err error) {
 	a.Tracker.TrackValue("epsilon", a.epsilon)
 	if num.RandF32(0.0, 1.0) < a.epsilon {
 		// explore
-		action, err = a.env.SampleAction()
-		if err != nil {
-			return
-		}
+		action = rand.Intn(a.ActionShape[1])
 		return
 	}
 	action, err = a.action(state)

@@ -18,7 +18,7 @@ func main() {
 	)
 	require.NoError(err)
 
-	agent, err := deepq.NewAgent(deepq.DefaultAgentConfig, env)
+	agent, err := deepq.NewAgent(deepq.DefaultAgentConfig)
 	require.NoError(err)
 
 	agent.View()

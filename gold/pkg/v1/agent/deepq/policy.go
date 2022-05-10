@@ -2,7 +2,6 @@ package deepq
 
 import (
 	agentv1 "github.com/aunum/gold/pkg/v1/agent"
-	envv1 "github.com/aunum/gold/pkg/v1/env"
 	"github.com/aunum/goro/pkg/v1/layer"
 	modelv1 "github.com/aunum/goro/pkg/v1/model"
 
@@ -71,11 +70,11 @@ var DefaultAtariLayerBuilder = func(x, y *modelv1.Input) []layer.Config {
 }
 
 // MakePolicy makes a policy model.
-func MakePolicy(name string, config *PolicyConfig, base *agentv1.Base, env *envv1.Env) (modelv1.Model, error) {
-	x := modelv1.NewInput("state", env.ObservationSpaceShape())
+func MakePolicy(name string, config *PolicyConfig, base *agentv1.Base, StateShape []int, ActionShape []int) (modelv1.Model, error) {
+	x := modelv1.NewInput("state", StateShape)
 	x.EnsureBatch()
 
-	y := modelv1.NewInput("actionPotentials", envv1.PotentialsShape(env.ActionSpace))
+	y := modelv1.NewInput("actionPotentials", ActionShape)
 	y.EnsureBatch()
 
 	log.Infov("x shape", x.Shape())
