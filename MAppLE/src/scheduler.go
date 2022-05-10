@@ -28,9 +28,12 @@ type scheduler struct {
 	lossRateScheduler    *lossBasedScheduler
 	redundancyController fec.RedundancyController
 	rlmemories 			map[protocol.PathID]*RLMemory
+	nmBandwidth			*networkMonitor
 }
 
 func (sch *scheduler) setup() {
+	sch.nmBandwidth = &networkMonitor{}
+	sch.nmBandwidth.setup(1000)
 	sch.quotas = make(map[protocol.PathID]uint)
 	sch.rlmemories = make(map[protocol.PathID]*RLMemory)
 	if sch.redundancyController != nil {
