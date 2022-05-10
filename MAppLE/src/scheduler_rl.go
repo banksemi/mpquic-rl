@@ -96,6 +96,8 @@ func (sch *scheduler) receivedACKForRL(paths map[protocol.PathID]*path, ackFrame
 		// Pop data
 		sch.rlmemories[pathID].PopFront()
 
+		sch.nmBandwidth.push(1)
+
 		// Reward
 		var outcome *envv1.Outcome = new(envv1.Outcome)
 		if (pathID == 1) {
@@ -105,11 +107,11 @@ func (sch *scheduler) receivedACKForRL(paths map[protocol.PathID]*path, ackFrame
 			outcome.Action = 1
 		}
 		//utcome.Action = int(uint8(pathID) - uint8(1))
-		outcome.Reward = 1
+		outcome.Reward = float32(sch.nmBandwidth.getSum())
 		outcome.Done = false
 		outcome.Observation = sch.getRLState(paths)	// The state changed due to the action must be entered
 
-		goldlog.Infof("	읽기 [%d] %d %d -> %d", pathID, FrontData.PacketNumber, FrontData.State, outcome.Observation)
+		goldlog.Infof("	읽기 [%d] %d %f %d -> %d", pathID, FrontData.PacketNumber, outcome.Reward, FrontData.State, outcome.Observation)
 		
 		// Store event to replay buffer
 		event := deepq.NewEvent(FrontData.State, outcome.Action, outcome)
