@@ -2,6 +2,8 @@ package quic
 
 import (
 	"time"
+	"sync"
+	"runtime"
 	
 	"github.com/lucas-clemente/quic-go/internal/protocol"
     "github.com/gammazero/deque"
@@ -43,11 +45,35 @@ func RLNewEvent(pathID protocol.PathID, packetnumber protocol.PacketNumber, stat
 		State:   state,
 	}
 }
+func SetupThreadRL() {
+	for {
+		time.Sleep(200 * time.Millisecond)
+		// startTime2 := time.Now()
+		lock.Lock()
+		// startTime1 := time.Now()
+		agent.Learn()
+		// time1 := time.Since(startTime1)
+		lock.Unlock()
+		// time2 := time.Since(startTime2)
+		// goldlog.Infof("학습 소요 시간 %s, Mutex Lock 시간 %s", time1, time2 - time1)
+	}
+}
+
+var lock sync.Mutex
+func LockAgent() {
+	lock.Lock()
+	return
+}
+
+func UnlockAgent() {
+	lock.Unlock()
+}
 
 var agent *deepq.Agent;
 
 func SetupRL() {
-	newagent, err := deepq.NewAgent(deepq.DefaultAgentConfig)
+	runtime.GOMAXPROCS(4)
+	newagent, err := deepq.NewAgent(DefaultAgentConfig)
 	agent = newagent
 	require.NoError(err)
 	go SetupThreadRL()
@@ -108,7 +134,6 @@ func (sch *scheduler) receivedACKForRL(paths map[protocol.PathID]*path, ackFrame
 		// Store event to replay buffer
 		event := deepq.NewEvent(FrontData.State, outcome.Action, outcome)
 		agent.Remember(event)
-		agent.Learn()
 	}
 }
 
