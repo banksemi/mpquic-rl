@@ -12,11 +12,23 @@ import (
 	"github.com/aunum/gold/pkg/v1/agent/deepq"
 	"github.com/aunum/gold/pkg/v1/common/require"
 	envv1 "github.com/aunum/gold/pkg/v1/env"
+	agentv1 "github.com/aunum/gold/pkg/v1/agent"
 
 	goldlog "github.com/aunum/log"
 	"github.com/lucas-clemente/quic-go/internal/wire"
 
 )
+
+const StateShape int = 6
+
+// DefaultAgentConfig is the default config for a dqn agent.
+var DefaultAgentConfig = &deepq.AgentConfig{
+	Hyperparameters: deepq.DefaultHyperparameters,
+	PolicyConfig:    deepq.DefaultPolicyConfig,
+	Base:            agentv1.NewBase("DeepQ"),
+	StateShape:		 []int{1, StateShape},
+	ActionShape:	 []int{1, 2},
+}
 
 type RLMemory struct {
 	*deque.Deque
@@ -138,7 +150,7 @@ func (sch *scheduler) receivedACKForRL(paths map[protocol.PathID]*path, ackFrame
 }
 
 func (sch *scheduler) getRLState(paths map[protocol.PathID]*path) (state *tensor.Dense) {
-	var features [4]float32;
+	var features [StateShape]float32;
 	for pathID, pth := range paths {
 		if (pathID == protocol.InitialPathID) { 
 			continue;
@@ -152,12 +164,15 @@ func (sch *scheduler) getRLState(paths map[protocol.PathID]*path) (state *tensor
 		// Feature extraction of path
 		rtt := float32(pth.rttStats.SmoothedRTT().Milliseconds())
 		cwnd :=  float32(pth.GetCongestionWindow())
-		features[(pathID-1)*2+0] = rtt;
-		features[(pathID-1)*2+1] = cwnd;
+		inflight := float32(pth.sentPacketHandler.GetBytesInFlight())
+		features[(int(pathID)-1)*(StateShape/2)+0] = rtt;
+		features[(int(pathID)-1)*(StateShape/2)+1] = cwnd;
+		features[(int(pathID)-1)*(StateShape/2)+2] = inflight;
+
 	}
 
 	// Set state vactor
-	state = tensor.New(tensor.WithShape(1,4), tensor.WithBacking([]float32{features[0],features[1], features[2], features[3]}))
+	state = tensor.New(tensor.WithShape(agent.StateShape...), tensor.WithBacking([]float32{features[0],features[1], features[2], features[3], features[4], features[5]}))
 
 	// return state
 	return

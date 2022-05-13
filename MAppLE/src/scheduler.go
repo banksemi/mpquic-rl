@@ -33,7 +33,7 @@ type scheduler struct {
 
 func (sch *scheduler) setup() {
 	sch.nmBandwidth = &networkMonitor{}
-	sch.nmBandwidth.setup(1000)
+	sch.nmBandwidth.setup(50)
 	sch.quotas = make(map[protocol.PathID]uint)
 	sch.rlmemories = make(map[protocol.PathID]*RLMemory)
 	if sch.redundancyController != nil {
