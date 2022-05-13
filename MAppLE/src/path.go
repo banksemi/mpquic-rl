@@ -22,6 +22,7 @@ const (
 )
 
 type path struct {
+	lastpacketnumber protocol.PacketNumber
 	pathID protocol.PathID
 	conn   connection
 	sess   sessionI

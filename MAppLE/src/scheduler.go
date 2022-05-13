@@ -12,6 +12,8 @@ import (
 	"github.com/lucas-clemente/quic-go/internal/protocol"
 	"github.com/lucas-clemente/quic-go/internal/utils"
 	"github.com/lucas-clemente/quic-go/internal/wire"
+
+	goldlog "github.com/aunum/log"
 )
 
 type schedulerInterface interface {
@@ -25,10 +27,15 @@ type scheduler struct {
 	quotas               map[protocol.PathID]uint
 	lossRateScheduler    *lossBasedScheduler
 	redundancyController fec.RedundancyController
+	rlmemories 			map[protocol.PathID]*RLMemory
+	nmBandwidth			*networkMonitor
 }
 
 func (sch *scheduler) setup() {
+	sch.nmBandwidth = &networkMonitor{}
+	sch.nmBandwidth.setup(1000)
 	sch.quotas = make(map[protocol.PathID]uint)
+	sch.rlmemories = make(map[protocol.PathID]*RLMemory)
 	if sch.redundancyController != nil {
 		sch.lossRateScheduler = newLossBasedScheduler(sch.quotas, sch.redundancyController.GetNumberOfRepairSymbols())
 	}
@@ -64,6 +71,7 @@ func (sch *scheduler) getRetransmission(s sessionI) (hasRetransmission bool, ret
 			return
 		}
 		utils.Debugf("\tDequeueing retransmission of packet 0x%x from path %d", retransmitPacket.PacketNumber, pth.pathID)
+		goldlog.Infof("\tDequeueing retransmission of packet %d from path %d", retransmitPacket.PacketNumber, pth.pathID)
 		// resend the frames that were in the packet
 		for _, frame := range retransmitPacket.GetFramesForRetransmission() {
 			// TODO: only retransmit WINDOW_UPDATEs if they actually enlarge the window
@@ -567,6 +575,8 @@ func (sch *scheduler) selectPath(s sessionI, hasRetransmission bool, hasStreamRe
 		return sch.selectPathS_EDPF(s, hasRetransmission, hasStreamRetransmission, hasFECFrame, fromPth)
 	case protocol.SchedSingle:
 		return s.Paths()[0]
+	case protocol.SchedRL:
+		return sch.selectPathReinforcementLearning(s, hasRetransmission, hasStreamRetransmission, fromPth)
 	default:
 		panic("unknown scheduler selected")
 	}
@@ -858,6 +868,18 @@ func (sch *scheduler) sendLoop(s sessionI, windowUpdates []wire.Frame) error {
 			return sch.ackRemainingPaths(s, windowUpdates)
 		}
 
+		if pth != nil {
+			if (s.GetConfig().SchedulingScheme == protocol.SchedRL) {
+				sch.storeStateAction(s, pth.pathID, packet.header.PacketNumber)
+			}
+			if (pth.lastpacketnumber + 1 != packet.header.PacketNumber) {
+				pth.lastpacketnumber = packet.header.PacketNumber
+				goldlog.Errorf("[Packet 번호 건너뜀] %d PacketNumber %d 이 존재하지 않음", pth.pathID, packet.header.PacketNumber - 1)
+			} else {
+				pth.lastpacketnumber = packet.header.PacketNumber
+			}
+		}
+		
 		// And try pinging on potentially failed paths
 		if fromPth != nil && fromPth.potentiallyFailed.Get() {
 			err = s.SendPing(fromPth)
