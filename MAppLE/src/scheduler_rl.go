@@ -303,11 +303,17 @@ pathLoop:
 		goto pathLoop
 	}
 
-	// timesteps:= episode.Steps(env.MaxSteps())
-	
-
-	// goldlog.Infof("State: %s", x)
-	// goldlog.Infof("Path count: %d Select %d Action %d", len(paths), selectedPathID, action)
+	// If all paths are not available
+	var dontsendpacket = true
+	for _, pth := range paths {
+		// Don't block path usage if we retransmit, even on another path
+		if hasRetransmission || pth.SendingAllowed() {
+			dontsendpacket = false
+		}
+	}
+	if (dontsendpacket == true) {
+		return nil
+	}
 
 	// Set state vactor
 	state := sch.getRLState(s.Paths())
@@ -315,15 +321,15 @@ pathLoop:
 	// Perform Action
 	action, _ := agent.Action(state)
 
-
-	return selectedPath
-	if (action == 0) {
+	// initial path
+	if (selectedPathID == protocol.PathID(0)) {
+		return selectedPath
+	}
+	if (action == 0 && paths[1] != nil) {
 		return paths[1]
 	}
-	if (action == 1) {
+	if (action == 1 && paths[2] != nil) {
 		return paths[2]
 	}
-	goldlog.Infof("Path count: %d Select %d Action %d", len(paths), selectedPathID, action)
-	goldlog.Infof("Error")
-	return selectedPath
+	return nil
 }

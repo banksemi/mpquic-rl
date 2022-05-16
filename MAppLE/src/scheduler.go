@@ -792,6 +792,14 @@ func (sch *scheduler) sendLoop(s sessionI, windowUpdates []wire.Frame) error {
 
 		// Select the path here
 		pth := sch.selectPath(s, hasRetransmission, hasStreamRetransmission, hasFECFrames, fromPth)
+		original_pth := pth
+
+		// If an unavailable path is selected by agent, Initialize the path variable
+		if (s.GetConfig().SchedulingScheme == protocol.SchedRL) {
+			if (pth != nil && !hasRetransmission && !pth.SendingAllowed()) {
+				pth = nil
+			}
+		}
 
 		// XXX No more path available, should we have a new QUIC error message?
 		if pth == nil {
@@ -870,11 +878,12 @@ func (sch *scheduler) sendLoop(s sessionI, windowUpdates []wire.Frame) error {
 			// Prevent sending empty packets
 			return sch.ackRemainingPaths(s, windowUpdates)
 		}
-
-		if pth != nil {
+		if original_pth != nil {
 			if (s.GetConfig().SchedulingScheme == protocol.SchedRL) {
-				sch.storeStateAction(s, pth.pathID, packet.header.PacketNumber)
+				sch.storeStateAction(s, original_pth.pathID, packet.header.PacketNumber)
 			}
+		}
+		if pth != nil {
 			if (pth.lastpacketnumber + 1 != packet.header.PacketNumber) {
 				pth.lastpacketnumber = packet.header.PacketNumber
 				goldlog.Errorf("[Packet 번호 건너뜀] %d PacketNumber %d 이 존재하지 않음", pth.pathID, packet.header.PacketNumber - 1)
