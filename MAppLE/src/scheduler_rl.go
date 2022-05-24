@@ -2,7 +2,6 @@ package quic
 
 import (
 	"time"
-	"sync"
 	"runtime"
 	
 	"github.com/lucas-clemente/quic-go/internal/protocol"
@@ -59,27 +58,18 @@ func RLNewEvent(pathID protocol.PathID, packetnumber protocol.PacketNumber, stat
 }
 func SetupThreadRL() {
 	for {
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 		// startTime2 := time.Now()
-		lock.Lock()
+		// lock.Lock()
 		// startTime1 := time.Now()
 		agent.Learn()
 		// time1 := time.Since(startTime1)
-		lock.Unlock()
+		// lock.Unlock()
 		// time2 := time.Since(startTime2)
 		// goldlog.Infof("학습 소요 시간 %s, Mutex Lock 시간 %s", time1, time2 - time1)
 	}
 }
 
-var lock sync.Mutex
-func LockAgent() {
-	lock.Lock()
-	return
-}
-
-func UnlockAgent() {
-	lock.Unlock()
-}
 
 var agent *deepq.Agent;
 

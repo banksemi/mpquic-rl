@@ -2,6 +2,7 @@
 package deepq
 
 import (
+	"sync"
 	"math/rand"
 
 	"github.com/aunum/gold/pkg/v1/dense"
@@ -28,6 +29,9 @@ type Agent struct {
 	// Target policy for double Q learning.
 	TargetPolicy model.Model
 
+	// Policy for the agent.
+	PredictPolicy model.Model
+
 	// Epsilon is the rate at which the agent explores vs exploits.
 	Epsilon common.Schedule
 
@@ -39,6 +43,8 @@ type Agent struct {
 
 	StateShape        []int
 	ActionShape       []int
+	
+	lock sync.Mutex
 }
 
 // Hyperparameters for the dqn agent.
@@ -111,6 +117,12 @@ func NewAgent(c *AgentConfig) (*Agent, error) {
 	if err != nil {
 		return nil, err
 	}
+	
+	predictPolicy, err := MakePolicy("predict", c.PolicyConfig, c.Base, c.StateShape, c.ActionShape)
+	if err != nil {
+		return nil, err
+	}
+
 	c.Base.Tracker.TrackValue("epsilon", c.Epsilon.Initial())
 	return &Agent{
 		Base:              c.Base,
@@ -118,6 +130,7 @@ func NewAgent(c *AgentConfig) (*Agent, error) {
 		memory:            NewMemory(),
 		Policy:            policy,
 		TargetPolicy:      targetPolicy,
+		PredictPolicy:     predictPolicy,
 		Epsilon:           c.Epsilon,
 		epsilon:           c.Epsilon.Initial(),
 		updateTargetSteps: c.UpdateTargetSteps,
@@ -190,6 +203,13 @@ func (a *Agent) updateTarget() error {
 		if err != nil {
 			return err
 		}
+
+		a.lock.Lock()
+		err = a.Policy.(*model.Sequential).CloneLearnablesTo(a.PredictPolicy.(*model.Sequential))
+		a.lock.Unlock()
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -208,7 +228,9 @@ func (a *Agent) Action(state *tensor.Dense) (action int, err error) {
 }
 
 func (a *Agent) action(state *tensor.Dense) (action int, err error) {
-	prediction, err := a.Policy.Predict(state)
+	a.lock.Lock()
+	prediction, err := a.PredictPolicy.Predict(state)
+	a.lock.Unlock()
 	if err != nil {
 		return
 	}

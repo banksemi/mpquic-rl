@@ -778,9 +778,6 @@ func (sch *scheduler) sendLoop(s sessionI, windowUpdates []wire.Frame) error {
 	streamFramer := s.GetStreamFramer()
 	fecFramer := s.GetFECFramer()
 
-	LockAgent()
-
-	defer UnlockAgent()
 	// Repeatedly try sending until we don't have any more data, or run out of the congestion window
 	for {
 		// We first check for retransmissions
