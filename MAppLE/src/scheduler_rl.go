@@ -16,6 +16,7 @@ import (
 	goldlog "github.com/aunum/log"
 	"github.com/lucas-clemente/quic-go/internal/wire"
 
+	"github.com/aunum/gold/pkg/v1/common/num"
 )
 
 const StateShape int = 6
@@ -26,7 +27,7 @@ var DefaultAgentConfig = &deepq.AgentConfig{
 	PolicyConfig:    deepq.DefaultPolicyConfig,
 	Base:            agentv1.NewBase("DeepQ"),
 	StateShape:		 []int{1, StateShape},
-	ActionShape:	 []int{1, 2},
+	ActionShape:	 []int{1, 5},
 }
 
 type RLMemory struct {
@@ -72,7 +73,9 @@ func SetupThreadRL() {
 
 
 var agent *deepq.Agent;
-
+var last_action int = 0;
+var last_scheduling_time time.Time = time.Now();
+var last_state *tensor.Dense;
 func SetupRL() {
 	runtime.GOMAXPROCS(4)
 	newagent, err := deepq.NewAgent(DefaultAgentConfig)
@@ -134,8 +137,8 @@ func (sch *scheduler) receivedACKForRL(paths map[protocol.PathID]*path, ackFrame
 		goldlog.Infof("	읽기 [%d] %d %f %d -> %d", pathID, FrontData.PacketNumber, outcome.Reward, FrontData.State, outcome.Observation)
 		
 		// Store event to replay buffer
-		event := deepq.NewEvent(FrontData.State, outcome.Action, outcome)
-		agent.Remember(event)
+		// event := deepq.NewEvent(FrontData.State, outcome.Action, outcome)
+		// agent.Remember(event)
 	}
 }
 
@@ -305,20 +308,55 @@ pathLoop:
 		return nil
 	}
 
-	// Set state vactor
-	state := sch.getRLState(s.Paths())
+	if (time.Since(last_scheduling_time).Milliseconds() > 50) {
+		// Set state vactor
+		state := sch.getRLState(s.Paths())
 
-	// Perform Action
-	action, _ := agent.Action(state)
+		// Perform Action
+		action, _ := agent.Action(state)
+
+		// Reward
+		if (last_state != nil) {
+			var outcome *envv1.Outcome = new(envv1.Outcome)
+			outcome.Action = last_action
+			outcome.Reward = float32(sch.nmBandwidth.getSum())
+			outcome.Done = false
+			outcome.Observation = last_state // The state changed due to the action must be entered
+
+			// Store event to replay buffer
+			event := deepq.NewEvent(state, outcome.Action, outcome)
+			agent.Remember(event)
+			goldlog.Infof("기존 액션 %d 결과 %f 스테이트 %d -> %d", last_action, outcome.Reward, outcome.Observation, state)
+		}
+		last_action = action
+		last_state = state
+		last_scheduling_time = time.Now()
+
+	}
 
 	// initial path
 	if (selectedPathID == protocol.PathID(0)) {
 		return selectedPath
 	}
-	if (action == 0 && paths[1] != nil) {
-		return paths[1]
+	var split_p1 float32 = 0.0
+	if (last_action == 0) {
+		split_p1 = 0.1
 	}
-	if (action == 1 && paths[2] != nil) {
+	if (last_action == 1) {
+		split_p1 = 0.25
+	}
+	if (last_action == 2) {
+		split_p1 = 0.5
+	}
+	if (last_action == 3) {
+		split_p1 = 0.75
+	}
+	if (last_action == 4) {
+		split_p1 = 0.9
+	}
+	if num.RandF32(0.0, 1.0) < split_p1 { 
+		return paths[1]
+	} else {
 		return paths[2]
 	}
 	return nil
