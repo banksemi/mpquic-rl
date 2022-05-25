@@ -155,9 +155,9 @@ func (sch *scheduler) getRLState(paths map[protocol.PathID]*path) (state *tensor
 		rtt := float32(pth.rttStats.SmoothedRTT().Milliseconds())
 		cwnd :=  float32(pth.GetCongestionWindow())
 		inflight := float32(pth.sentPacketHandler.GetBytesInFlight())
-		features[(int(pathID)-1)*(StateShape/2)+0] = rtt;
-		features[(int(pathID)-1)*(StateShape/2)+1] = cwnd;
-		features[(int(pathID)-1)*(StateShape/2)+2] = inflight;
+		features[(int(pathID)-1)*(StateShape/2)+0] = rtt / 100;
+		features[(int(pathID)-1)*(StateShape/2)+1] = cwnd / 100000;
+		features[(int(pathID)-1)*(StateShape/2)+2] = inflight / 100000;
 
 	}
 
