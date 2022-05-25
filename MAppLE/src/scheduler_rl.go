@@ -10,6 +10,7 @@ import (
 
 	"github.com/aunum/gold/pkg/v1/agent/deepq"
 	"github.com/aunum/gold/pkg/v1/common/require"
+	"github.com/aunum/gold/pkg/v1/common"
 	envv1 "github.com/aunum/gold/pkg/v1/env"
 	agentv1 "github.com/aunum/gold/pkg/v1/agent"
 
@@ -20,10 +21,15 @@ import (
 )
 
 const StateShape int = 6
-
+var Hyperparameters = &deepq.Hyperparameters{
+	Epsilon:           common.DefaultDecaySchedule(),
+	Gamma:             0.5,
+	UpdateTargetSteps: 100,
+	BufferSize:        10e6,
+}
 // DefaultAgentConfig is the default config for a dqn agent.
 var DefaultAgentConfig = &deepq.AgentConfig{
-	Hyperparameters: deepq.DefaultHyperparameters,
+	Hyperparameters: Hyperparameters,
 	PolicyConfig:    deepq.DefaultPolicyConfig,
 	Base:            agentv1.NewBase("DeepQ"),
 	StateShape:		 []int{1, StateShape},
