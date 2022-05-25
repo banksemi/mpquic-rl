@@ -94,8 +94,9 @@ func SetupRL() {
 func (sch *scheduler) receivedACKForRL(paths map[protocol.PathID]*path, ackFrame *wire.AckFrame) {
 	var pathID = ackFrame.PathID;
 	
-	var largetstack = ackFrame.LargestAcked
-	var lowestack = ackFrame.LowestAcked
+	// var largetstack = ackFrame.LargestAcked
+	// var lowestack = ackFrame.LowestAcked
+
 	var ack = ackFrame.LargestAcked
 	// Calculation of ACK number received without loss
 	if (len(ackFrame.AckRanges) > 0) {
@@ -108,7 +109,7 @@ func (sch *scheduler) receivedACKForRL(paths map[protocol.PathID]*path, ackFrame
 		return
 	}
 
-	goldlog.Infof("	수신 [%d] [계산:%d] %d - %d %d", pathID, ack, lowestack, largetstack, ackFrame.AckRanges)
+	//goldlog.Infof("	수신 [%d] [계산:%d] %d - %d %d", pathID, ack, lowestack, largetstack, ackFrame.AckRanges)
 
 	// Repeat for all saved reinforcement learning events	
 	for {
@@ -140,7 +141,7 @@ func (sch *scheduler) receivedACKForRL(paths map[protocol.PathID]*path, ackFrame
 		outcome.Done = false
 		outcome.Observation = sch.getRLState(paths)	// The state changed due to the action must be entered
 
-		goldlog.Infof("	읽기 [%d] %d %f %d -> %d", pathID, FrontData.PacketNumber, outcome.Reward, FrontData.State, outcome.Observation)
+		// goldlog.Infof("	읽기 [%d] %d %f 걸린시간 %s %d -> %d", pathID, FrontData.PacketNumber, outcome.Reward, time.Since(FrontData.SendTime),FrontData.State, outcome.Observation)
 		
 		// Store event to replay buffer
 		// event := deepq.NewEvent(FrontData.State, outcome.Action, outcome)

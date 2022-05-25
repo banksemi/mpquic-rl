@@ -221,6 +221,7 @@ func (a *Agent) Action(state *tensor.Dense) (action int, err error) {
 	if num.RandF32(0.0, 1.0) < a.epsilon {
 		// explore
 		action = rand.Intn(a.ActionShape[1])
+		log.Infof("Random Action %d", action)
 		return
 	}
 	action, err = a.action(state)
@@ -236,6 +237,7 @@ func (a *Agent) action(state *tensor.Dense) (action int, err error) {
 	}
 	qValues := prediction.(*tensor.Dense)
 	log.Debugv("qvalues", qValues)
+	log.Infof("qvalues", qValues)
 	actionIndex, err := qValues.Argmax(1)
 	if err != nil {
 		return action, err
