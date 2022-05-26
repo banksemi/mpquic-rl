@@ -1179,6 +1179,7 @@ func (sch *scheduler) selectPath(s *session, hasRetransmission bool, hasStreamRe
 	}else if sch.SchedulerName == "primary" {
 		return sch.selectFirstPath(s, hasRetransmission, hasStreamRetransmission, fromPth)
 	}else{
+		panic("unknown scheduler selected")
 		// Default, rtt
 		return sch.selectPathLowLatency(s, hasRetransmission, hasStreamRetransmission, fromPth)
 	}

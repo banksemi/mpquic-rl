@@ -112,6 +112,7 @@ func NewServer(addr string, group []*SiteConfig) (*Server, error) {
 			// quic.SetupRL()
 
 			config := quic.Config{
+				SchedulerName: MPQUIC_SCHED,
 			}
 
 			if QUIC_EXPERIMENT_LOGGING {

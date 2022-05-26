@@ -144,7 +144,7 @@ func createRemoteClient() {
 		quicConfig := quic.Config{
 			CreatePaths: true, // Grant this ability by default for a server
 		// 	MaxPathID:                   maxPathID,
-		// 	SchedulingSchemeName:        schedulingScheme,
+			SchedulerName:        schedulingScheme,
 		// 	CongestionControlName:       congestionControl,
 		// 	FECScheme:                   fs,
 		// 	RedundancyController:        rc,
