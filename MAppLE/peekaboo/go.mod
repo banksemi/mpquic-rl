@@ -3,9 +3,10 @@ module github.com/lucas-clemente/quic-go
 go 1.14
 
 require (
+	bitbucket.com/marcmolla/gorl v0.0.0
 	github.com/atgjack/prob v0.0.0-20161220081030-6cfd5d401186
 	github.com/aunum/gold v0.0.0-20201022151355-225e849d893f // indirect
-	github.com/bifurcation/mint v0.0.0-20200214151656-93c820e81448
+	github.com/bifurcation/mint v0.0.0-20210616192047-fd18df995463
 	github.com/golang/mock v1.4.3
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/klauspost/cpuid v1.2.3 // indirect
@@ -17,11 +18,13 @@ require (
 	github.com/onsi/ginkgo v1.12.0
 	github.com/onsi/gomega v1.9.0
 	github.com/vishvananda/netlink v1.1.0
-	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
-	golang.org/x/mod v0.4.1 // indirect
-	golang.org/x/net v0.0.0-20201021035429-f5854403a974
-	golang.org/x/sync v0.0.0-20201207232520-09787c993a3a // indirect
-	golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c // indirect
+	golang.org/x/crypto v0.0.0-20220518034528-6f7dac969898
+	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2
 	golang.org/x/tools/gopls v0.6.4 // indirect
-	honnef.co/go/tools v0.1.1
+	gonum.org/v1/gonum v0.11.0 // indirect
+	gonum.org/v1/hdf5 v0.0.0-20210714002203-8c5d23bc6946 // indirect
+	honnef.co/go/tools v0.1.3
 )
+
+replace bitbucket.com/marcmolla/gorl => ../gorl
+replace github.com/bifurcation/mint => ../mint-a6080d464fb57a9330c2124ffb62f3c233e3400e

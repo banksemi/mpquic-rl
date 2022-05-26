@@ -134,21 +134,22 @@ func createRemoteClient() {
 	tlsConfig := &tls.Config{InsecureSkipVerify: true}
 
 	if useQUIC {
-		var maxPathID uint8 = 0
-		if useMP {
-			maxPathID = 2
-		}
+		// var maxPathID uint8 = 0
+		// if useMP {
+		// 	maxPathID = 2
+		// }
 
-		fs, rc := quic.FECConfigFromString(fecConfig)
+		// fs, rc := quic.FECConfigFromString(fecConfig)
 
 		quicConfig := quic.Config{
-			MaxPathID:                   maxPathID,
-			SchedulingSchemeName:        schedulingScheme,
-			CongestionControlName:       congestionControl,
-			FECScheme:                   fs,
-			RedundancyController:        rc,
-			ProtectReliableStreamFrames: useFEC,
-			DisableFECRecoveredFrames:   false,
+			CreatePaths: true, // Grant this ability by default for a server
+		// 	MaxPathID:                   maxPathID,
+		// 	SchedulingSchemeName:        schedulingScheme,
+		// 	CongestionControlName:       congestionControl,
+		// 	FECScheme:                   fs,
+		// 	RedundancyController:        rc,
+		// 	ProtectReliableStreamFrames: useFEC,
+		// 	DisableFECRecoveredFrames:   false,
 		}
 
 		// Use a HTTP/2.0 connection via QUIC
@@ -184,13 +185,13 @@ func createRemoteClient() {
 func StartLogging(period uint) {
 	os.MkdirAll("proxy_log/", 0777)
 
-	fecName := fecConfig
-	if !useFEC {
-		fecName = "none"
-	}
+	// fecName := fecConfig
+	// if !useFEC {
+	// 	fecName = "none"
+	// }
 
-	prefix := "proxy_log/" + schedulingScheme + "_" + fecName + "_" + strconv.FormatInt(time.Now().Unix(), 10)
-	logger.InitExperimentationLogger(prefix)
+	// prefix := "proxy_log/" + schedulingScheme + "_" + fecName + "_" + strconv.FormatInt(time.Now().Unix(), 10)
+	// logger.InitExperimentationLogger(prefix)
 
 	if logTicker == nil {
 		logTicker = time.NewTicker(time.Duration(period) * time.Millisecond)
@@ -202,7 +203,7 @@ func StartLogging(period uint) {
 
 //export StopLogging
 func StopLogging() {
-	logger.FlushExperimentationLogger()
+	// logger.FlushExperimentationLogger()
 
 	if logStopChannel != nil {
 		logStopChannel <- struct{}{}
