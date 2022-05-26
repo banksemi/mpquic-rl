@@ -17,7 +17,7 @@ import (
 
 	"github.com/lucas-clemente/quic-go"
 	"github.com/lucas-clemente/quic-go/h2quic"
-	"github.com/lucas-clemente/quic-go/logger"
+	// "github.com/lucas-clemente/quic-go/logger"
 )
 
 func main() {}
