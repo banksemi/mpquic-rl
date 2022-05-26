@@ -29,7 +29,6 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"time"
 
@@ -39,7 +38,7 @@ import (
 	"github.com/caddyserver/caddy/telemetry"
 	"github.com/lucas-clemente/quic-go"
 	"github.com/lucas-clemente/quic-go/h2quic"
-	"github.com/lucas-clemente/quic-go/logger"
+	// "github.com/lucas-clemente/quic-go/logger"
 )
 
 // Server is the HTTP server implementation.
@@ -108,35 +107,23 @@ func NewServer(addr string, group []*SiteConfig) (*Server, error) {
 	if s.Server.TLSConfig != nil {
 		// enable QUIC if desired (requires HTTP/2)
 		if HTTP2 && QUIC {
-			var maxPathID uint8 = 0
-			if MPQUIC {
-				maxPathID = 2
-			}
 
-			fs, rc := quic.FECConfigFromString(FECConfig)
 
-			quic.SetupRL()
+			// quic.SetupRL()
 
 			config := quic.Config{
-				MaxPathID:                   maxPathID,
-				SchedulingSchemeName:        MPQUIC_SCHED,
-				CongestionControlName:       MPQUIC_CC,
-				FECScheme:                   fs,
-				RedundancyController:        rc,
-				ProtectReliableStreamFrames: FECEnable,
-				DisableFECRecoveredFrames:   false,
 			}
 
 			if QUIC_EXPERIMENT_LOGGING {
 				os.MkdirAll("server_quic_log/", 0777)
-				prefix := "server_quic_log/" + MPQUIC_SCHED + "_" + FECConfig + "_" + strconv.FormatInt(time.Now().Unix(), 10)
-				logger.InitExperimentationLogger(prefix)
+				// prefix := "server_quic_log/" + MPQUIC_SCHED + "_" + FECConfig + "_" + strconv.FormatInt(time.Now().Unix(), 10)
+				// logger.InitExperimentationLogger(prefix)
 				c := make(chan os.Signal, 1)
 				signal.Notify(c, os.Interrupt)
 				go func() {
 					for range c {
 						fmt.Println("flushing log (lol) and quitting...")
-						logger.FlushExperimentationLogger()
+						// logger.FlushExperimentationLogger()
 					}
 				}()
 			}

@@ -10,7 +10,7 @@ END = "> /logs/server.logs 2>&1"
 
 BASIC_DELAY = 10
 
-CLIENT_CMD = "cd /logs && python3 /MAppLE/astream/dash_client.py -q -mp -m https://10.0.0.20:4242/manifest.mpd -s ll --fec --fecConfig win-xor > /logs/client.logs 2>&1"
+CLIENT_CMD = "cd /logs && python3 /MAppLE/astream/dash_client.py -q -mp -m https://10.0.0.20:4242/manifest.mpd -s rtt > /logs/client.logs 2>&1"
 
 TCP_SERVER_CMD = "cd /var/www && python -m SimpleHTTPServer 80 &"
 TCP_CLIENT_CMD = "curl -s -o /dev/null 10.0.0.20/demo &"

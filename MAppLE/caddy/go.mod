@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	github.com/aunum/gold v0.0.0-20201022151355-225e849d893f // indirect
+	github.com/bifurcation/mint v0.0.0-20210616192047-fd18df995463 // indirect
 	github.com/dustin/go-humanize v1.0.0
 	github.com/fatih/color v1.9.0 // indirect
 	github.com/flynn/go-shlex v0.0.0-20150515145356-3f9db97f8568
@@ -20,10 +21,11 @@ require (
 	github.com/naoina/toml v0.1.1
 	github.com/ory/dockertest v3.3.5+incompatible // indirect
 	github.com/russross/blackfriday v0.0.0-20170610170232-067529f716f4
-	golang.org/x/crypto v0.0.0-20220427172511-eb4f295cb31f // indirect
 	golang.org/x/net v0.0.0-20220425223048-2871e0cb64e4
 	golang.org/x/sys v0.0.0-20220422013727-9388b58f7150 // indirect
 	golang.org/x/term v0.0.0-20220411215600-e5f449aeb171 // indirect
+	gonum.org/v1/gonum v0.11.0 // indirect
+	gonum.org/v1/hdf5 v0.0.0-20210714002203-8c5d23bc6946 // indirect
 	gopkg.in/mcuadros/go-syslog.v2 v2.2.1
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v2 v2.2.8
@@ -32,5 +34,6 @@ require (
 )
 
 replace github.com/aunum/gold => ../../gold
-
-replace github.com/lucas-clemente/quic-go => ../src
+replace bitbucket.com/marcmolla/gorl => ../gorl
+replace github.com/bifurcation/mint => ../mint-a6080d464fb57a9330c2124ffb62f3c233e3400e
+replace github.com/lucas-clemente/quic-go => ../peekaboo
