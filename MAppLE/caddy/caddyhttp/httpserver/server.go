@@ -109,7 +109,7 @@ func NewServer(addr string, group []*SiteConfig) (*Server, error) {
 		if HTTP2 && QUIC {
 
 
-			// quic.SetupRL()
+			quic.SetupRL()
 
 			config := quic.Config{
 				SchedulerName: MPQUIC_SCHED,

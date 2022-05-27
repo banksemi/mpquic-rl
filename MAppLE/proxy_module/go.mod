@@ -14,6 +14,7 @@ require (
 	golang.org/x/term v0.0.0-20220411215600-e5f449aeb171 // indirect
 	gonum.org/v1/gonum v0.11.0 // indirect
 	gonum.org/v1/hdf5 v0.0.0-20210714002203-8c5d23bc6946 // indirect
+	gonum.org/v1/plot v0.11.0 // indirect
 	gorgonia.org/gorgonia v0.9.9 // indirect
 )
 

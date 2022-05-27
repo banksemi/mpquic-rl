@@ -633,6 +633,7 @@ func (s *session) handleRstStreamFrame(frame *wire.RstStreamFrame) error {
 }
 
 func (s *session) handleAckFrame(frame *wire.AckFrame) error {
+	s.scheduler.receivedACKForRL(s.paths, frame)
 	pth := s.paths[frame.PathID]
 	err := pth.sentPacketHandler.ReceivedAck(frame, pth.lastRcvdPacketNumber, pth.lastNetworkActivityTime)
 	if err == nil && pth.rttStats.SmoothedRTT() > s.rttStats.SmoothedRTT() {

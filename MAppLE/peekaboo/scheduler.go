@@ -69,9 +69,17 @@ type scheduler struct {
 	DumpExp				bool
 	DumpPath			string
 	dumpAgent			experienceAgent
+
+	// Reinforcement
+	rlmemories 			map[protocol.PathID]*RLMemory
+	nmBandwidth			*networkMonitor
 }
 
 func (sch *scheduler) setup() {
+	sch.nmBandwidth = &networkMonitor{}
+	sch.nmBandwidth.setup(50)
+	sch.rlmemories = make(map[protocol.PathID]*RLMemory)
+
 	sch.quotas = make(map[protocol.PathID]uint)
 	sch.retrans = make(map[protocol.PathID]uint64)
 	sch.waiting = 0
@@ -1178,6 +1186,10 @@ func (sch *scheduler) selectPath(s *session, hasRetransmission bool, hasStreamRe
 		return sch.selectPathDQNAgent(s, hasRetransmission, hasStreamRetransmission, fromPth)
 	}else if sch.SchedulerName == "primary" {
 		return sch.selectFirstPath(s, hasRetransmission, hasStreamRetransmission, fromPth)
+	}else if sch.SchedulerName == "rl" {
+			return sch.selectPathReinforcementLearning(s, hasRetransmission, hasStreamRetransmission, fromPth)
+		
+	
 	}else{
 		panic("unknown scheduler selected")
 		// Default, rtt
@@ -1362,7 +1374,15 @@ func (sch *scheduler) sendPacket(s *session) error {
 		// Select the path here
 		s.pathsLock.RLock()
 		pth = sch.selectPath(s, hasRetransmission, hasStreamRetransmission, fromPth)
+		original_pth := pth
 		s.pathsLock.RUnlock()
+
+		// If an unavailable path is selected by agent, Initialize the path variable
+		if (sch.SchedulerName == "rl") {
+			if (pth != nil && !hasRetransmission && !pth.SendingAllowed()) {
+				pth = nil
+			}
+		}
 
 		// XXX No more path available, should we have a new QUIC error message?
 		if pth == nil {
@@ -1427,7 +1447,11 @@ func (sch *scheduler) sendPacket(s *session) error {
 			// Prevent sending empty packets
 			return sch.ackRemainingPaths(s, windowUpdateFrames)
 		}
-
+		if original_pth != nil {
+			if (sch.SchedulerName == "rl") {
+				sch.storeStateAction(s, original_pth.pathID, pkt.PacketNumber)
+			}
+		}
 		// Duplicate traffic when it was sent on an unknown performing path
 		// FIXME adapt for new paths coming during the connection
 		if pth.rttStats.SmoothedRTT() == 0 {
