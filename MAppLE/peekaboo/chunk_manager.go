@@ -59,7 +59,7 @@ func (cm *chunkManager) ServeHTTP(w http.ResponseWriter, r *http.Request, size i
 	}
 }
 
-func (cm *chunkManager) sendPacket(f *wire.StreamFrame) {
+func (cm *chunkManager) sendPacket(f *wire.StreamFrame, event *RLEvent) {
 	// goldlog.Infof("%d, %d + %d 전송", f.StreamID, f.Offset, f.DataLen())
 
 	if (f.StreamID == 3) {
@@ -72,11 +72,18 @@ func (cm *chunkManager) sendPacket(f *wire.StreamFrame) {
 		if (f.Offset >= cm.chunks[cm.segmentNumber].sendBytes) {
 			// Retransmitted packets are not considered
 			cm.chunks[cm.segmentNumber].sendBytes += f.DataLen()
+			event.DataLen += f.DataLen() 
+			if (event.SegmentNumber == -1) {
+				event.SegmentNumber = cm.segmentNumber
+			} else {
+				panic("error")
+			}
 		}
 	}
 }
 
-func (cm *chunkManager) receivePacket(f *wire.AckFrame) {
-	// goldlog.Infof("수신", f)
-	// cm.chunks_from_stream_id[f.StreamID].receiveBytes += f.DataLen()
+func (cm *chunkManager) receivePacket(event *RLEvent) {
+	if (event.SegmentNumber != -1) {
+		cm.chunks[event.SegmentNumber].receiveBytes += event.DataLen
+	}
 }

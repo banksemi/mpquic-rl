@@ -49,6 +49,11 @@ type RLEvent struct {
 
 	// State by which the action was taken.
 	State *tensor.Dense
+
+	SegmentNumber int
+
+	// Data size, not retransmission
+	DataLen protocol.ByteCount
 }
 
 func RLNewMemory() *RLMemory {
@@ -63,6 +68,8 @@ func RLNewEvent(pathID protocol.PathID, packetnumber protocol.PacketNumber, stat
 		PathID:  pathID,
 		PacketNumber:  packetnumber,
 		State:   state,
+		SegmentNumber: -1,
+		DataLen: 0,
 	}
 }
 func SetupThreadRL() {
@@ -130,6 +137,9 @@ func (sch *scheduler) receivedACKForRL(paths map[protocol.PathID]*path, ackFrame
 
 		sch.nmBandwidth.push(1)
 
+		// Add datalen to received chunk size
+		GetChunkManager().receivePacket(FrontData)
+
 		// Reward
 		var outcome *envv1.Outcome = new(envv1.Outcome)
 		if (pathID == 1) {
@@ -196,15 +206,16 @@ func (sch *scheduler) storeStateAction(s *session, pathID protocol.PathID, pkt *
 	state := sch.getRLState(s.paths)
 
 	event := RLNewEvent(pathID, packetNumber, state)
-	sch.rlmemories[pathID].PushBack(event)
 
 	for _, frame := range pkt.Frames {
 		switch f := frame.(type) {
 		case *wire.StreamFrame:
 			cm := GetChunkManager()
-			cm.sendPacket(f)
+			cm.sendPacket(f, event) // Update event object
 		}
 	}
+	
+	sch.rlmemories[pathID].PushBack(event)
 
 
 	// goldlog.Infof("%s 전송 [%d] %d", time.Now(), pathID, packetNumber)
