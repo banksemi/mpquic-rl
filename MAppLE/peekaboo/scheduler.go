@@ -1449,7 +1449,7 @@ func (sch *scheduler) sendPacket(s *session) error {
 		}
 		if original_pth != nil {
 			if (sch.SchedulerName == "rl") {
-				sch.storeStateAction(s, original_pth.pathID, pkt.PacketNumber)
+				sch.storeStateAction(s, original_pth.pathID, pkt)
 			}
 		}
 		// Duplicate traffic when it was sent on an unknown performing path

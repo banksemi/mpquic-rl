@@ -513,6 +513,7 @@ func (s *session) handleFrames(fs []wire.Frame, p *path) error {
 			err = s.handleStreamFrame(frame)
 		case *wire.AckFrame:
 			err = s.handleAckFrame(frame)
+			s.scheduler.receivedACKForRL(s.paths, frame)
 		case *wire.ConnectionCloseFrame:
 			s.closeRemote(qerr.Error(frame.ErrorCode, frame.ReasonPhrase))
 		case *wire.GoawayFrame:
@@ -633,7 +634,6 @@ func (s *session) handleRstStreamFrame(frame *wire.RstStreamFrame) error {
 }
 
 func (s *session) handleAckFrame(frame *wire.AckFrame) error {
-	s.scheduler.receivedACKForRL(s.paths, frame)
 	pth := s.paths[frame.PathID]
 	err := pth.sentPacketHandler.ReceivedAck(frame, pth.lastRcvdPacketNumber, pth.lastNetworkActivityTime)
 	if err == nil && pth.rttStats.SmoothedRTT() > s.rttStats.SmoothedRTT() {

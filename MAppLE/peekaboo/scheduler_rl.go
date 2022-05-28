@@ -17,6 +17,7 @@ import (
 	goldlog "github.com/aunum/log"
 	"github.com/lucas-clemente/quic-go/internal/wire"
 	"github.com/lucas-clemente/quic-go/internal/utils"
+	"github.com/lucas-clemente/quic-go/ackhandler"
 
 	"github.com/aunum/gold/pkg/v1/common/num"
 )
@@ -185,7 +186,8 @@ func (sch *scheduler) getRLState(paths map[protocol.PathID]*path) (state *tensor
 	return
 }
 
-func (sch *scheduler) storeStateAction(s *session, pathID protocol.PathID, packetNumber protocol.PacketNumber) {
+func (sch *scheduler) storeStateAction(s *session, pathID protocol.PathID, pkt *ackhandler.Packet) {
+	var packetNumber protocol.PacketNumber = pkt.PacketNumber
 	if (sch.rlmemories[pathID] == nil) {
 		sch.rlmemories[pathID] = RLNewMemory()
 	}
@@ -195,6 +197,15 @@ func (sch *scheduler) storeStateAction(s *session, pathID protocol.PathID, packe
 
 	event := RLNewEvent(pathID, packetNumber, state)
 	sch.rlmemories[pathID].PushBack(event)
+
+	for _, frame := range pkt.Frames {
+		switch f := frame.(type) {
+		case *wire.StreamFrame:
+			cm := GetChunkManager()
+			cm.sendPacket(f)
+		}
+	}
+
 
 	// goldlog.Infof("%s 전송 [%d] %d", time.Now(), pathID, packetNumber)
 }
