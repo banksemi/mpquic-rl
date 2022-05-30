@@ -93,6 +93,7 @@ var agent *deepq.Agent;
 var last_action int = 0;
 var last_scheduling_time time.Time = time.Now();
 var last_state *tensor.Dense;
+var last_chunk int = -1;
 func SetupRL() {
 	runtime.GOMAXPROCS(4)
 	newagent, err := deepq.NewAgent(DefaultAgentConfig)
@@ -324,6 +325,20 @@ pathLoop:
 		return nil
 	}
 
+	if (GetChunkManager().segmentNumber != last_chunk) {
+		// Set state vactor
+		state := sch.getRLState(s.paths)
+
+		// Perform Action
+		action, _ := agent.Action(state)
+
+		sch.nmBandwidth.clear()
+		last_chunk = GetChunkManager().segmentNumber
+		last_action = action
+		last_state = state
+		last_scheduling_time = time.Now()
+	}
+
 	if (time.Since(last_scheduling_time).Milliseconds() > 50) {
 		// Set state vactor
 		state := sch.getRLState(s.paths)
@@ -339,21 +354,40 @@ pathLoop:
 			outcome.Done = false
 			outcome.Observation = state // The state changed due to the action must be entered
 
-			// Store event to replay buffer
-			event := deepq.NewEvent(last_state, outcome.Action, outcome)
-			agent.Remember(event)
-			goldlog.Infof("기존 액션 %d 결과 %f 스테이트 %d -> %d", last_action, outcome.Reward, last_action, outcome.Observation)
+			// Check stream data for sending
+			var remain_data protocol.ByteCount = 0
+			var streami int = 0
+			s.streamsMap.Iterate(func(str *stream) (bool, error) {
+				id := str.StreamID()
+				if (id != 1 && !(str.shouldSendFin() || str.finished())) {
+					remain_data += str.lenOfDataForWriting()
+					if (id != 3) {
+						streami += 1
+					}
+					// return false, nil
+				}
+				return true, nil
+			})
+
+			// Store event to replay buffer in sending
+			if (streami >= 1) {
+				event := deepq.NewEvent(last_state, outcome.Action, outcome)
+				agent.Remember(event)
+				goldlog.Infof("딜레이: %s", time.Since(last_scheduling_time).Milliseconds())
+				goldlog.Infof("남은 바이트 %d, 기존 액션 %d 결과 %f 스트림 %d,스테이트 %d -> %d", remain_data, last_action, outcome.Reward, streami, last_action, outcome.Observation)
+			}
 		}
 		last_action = action
 		last_state = state
 		last_scheduling_time = time.Now()
 
 	}
-
+	goldlog.Infof("%s 스케줄링 호출됨", time.Now())
 	// initial path
 	if (selectedPathID == protocol.PathID(0)) {
 		return selectedPath
 	}
+	
 	var split_p1 float32 = 0.0
 	if (last_action == 0) {
 		split_p1 = 0.1
