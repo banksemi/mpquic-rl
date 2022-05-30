@@ -8,11 +8,13 @@ import (
     "github.com/gammazero/deque"
 	"gorgonia.org/tensor"
 
+	"github.com/aunum/goro/pkg/v1/layer"
 	"github.com/aunum/gold/pkg/v1/agent/deepq"
 	"github.com/aunum/gold/pkg/v1/common/require"
 	"github.com/aunum/gold/pkg/v1/common"
 	envv1 "github.com/aunum/gold/pkg/v1/env"
 	agentv1 "github.com/aunum/gold/pkg/v1/agent"
+	modelv1 "github.com/aunum/goro/pkg/v1/model"
 
 	goldlog "github.com/aunum/log"
 	"github.com/lucas-clemente/quic-go/internal/wire"
@@ -20,6 +22,7 @@ import (
 	"github.com/lucas-clemente/quic-go/ackhandler"
 
 	"github.com/aunum/gold/pkg/v1/common/num"
+	g "gorgonia.org/gorgonia"
 )
 const StateShapeInPath int = 3
 const StateShapeSession int = 3
@@ -28,13 +31,33 @@ const StateShape int = StateShapeInPath * 2 + StateShapeSession
 var Hyperparameters = &deepq.Hyperparameters{
 	Epsilon:           common.DefaultDecaySchedule(),
 	Gamma:             0.5,
-	UpdateTargetSteps: 100,
+	UpdateTargetSteps: 10,
 	BufferSize:        10e6,
 }
+
+// DefaultFCLayerBuilder is a default fully connected layer builder.
+var DefaultFCLayerBuilder = func(x, y *modelv1.Input) []layer.Config {
+	return []layer.Config{
+		layer.FC{Input: x.Squeeze()[0], Output: 24},
+		layer.FC{Input: 24, Output: 24},
+		layer.FC{Input: 24, Output: 24},
+		layer.FC{Input: 24, Output: y.Squeeze()[0], Activation: layer.Linear},
+	}
+}
+
+// DefaultPolicyConfig are the default hyperparameters for a policy.
+var DefaultPolicyConfig = &deepq.PolicyConfig{
+	Loss:         modelv1.MSE,
+	Optimizer:    g.NewAdamSolver(g.WithLearnRate(0.0005)),
+	LayerBuilder: DefaultFCLayerBuilder,
+	BatchSize:    20,
+	Track:        true,
+}
+
 // DefaultAgentConfig is the default config for a dqn agent.
 var DefaultAgentConfig = &deepq.AgentConfig{
 	Hyperparameters: Hyperparameters,
-	PolicyConfig:    deepq.DefaultPolicyConfig,
+	PolicyConfig:    DefaultPolicyConfig,
 	Base:            agentv1.NewBase("DeepQ"),
 	StateShape:		 []int{1, StateShape},
 	ActionShape:	 []int{1, 7},

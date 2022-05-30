@@ -131,7 +131,7 @@ func DefaultDecaySchedule(opts ...DecayScheduleOpt) *DecaySchedule {
 	s := &DecaySchedule{
 		decayRate:    0.995,
 		initialValue: 1.0,
-		minValue:     0.01,
+		minValue:     0.07,
 		currentValue: 1.0,
 	}
 	for _, opt := range opts {
