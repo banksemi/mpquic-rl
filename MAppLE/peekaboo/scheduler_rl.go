@@ -21,8 +21,10 @@ import (
 
 	"github.com/aunum/gold/pkg/v1/common/num"
 )
+const StateShapeInPath int = 3
+const StateShapeSession int = 1
+const StateShape int = StateShapeInPath * 2 + StateShapeSession
 
-const StateShape int = 6
 var Hyperparameters = &deepq.Hyperparameters{
 	Epsilon:           common.DefaultDecaySchedule(),
 	Gamma:             0.5,
@@ -103,7 +105,7 @@ func SetupRL() {
 	goldlog.Infof("쓰레드 실행 명령")
 }
 
-func (sch *scheduler) receivedACKForRL(paths map[protocol.PathID]*path, ackFrame *wire.AckFrame) {
+func (sch *scheduler) receivedACKForRL(s *session, ackFrame *wire.AckFrame) {
 	var pathID = ackFrame.PathID;
 	
 	// var largetstack = ackFrame.LargestAcked
@@ -154,7 +156,7 @@ func (sch *scheduler) receivedACKForRL(paths map[protocol.PathID]*path, ackFrame
 		//utcome.Action = int(uint8(pathID) - uint8(1))
 		outcome.Reward = float32(sch.nmBandwidth.getSum())
 		outcome.Done = false
-		outcome.Observation = sch.getRLState(paths)	// The state changed due to the action must be entered
+		outcome.Observation = sch.getRLState(s)	// The state changed due to the action must be entered
 
 		// goldlog.Infof("	읽기 [%d] %d %f %d -> %d", pathID, FrontData.PacketNumber, outcome.Reward, FrontData.State, outcome.Observation)
 		
@@ -164,10 +166,10 @@ func (sch *scheduler) receivedACKForRL(paths map[protocol.PathID]*path, ackFrame
 	}
 }
 
-func (sch *scheduler) getRLState(paths map[protocol.PathID]*path) (state *tensor.Dense) {
+func (sch *scheduler) getRLState(s *session) (state *tensor.Dense) {
 	var features [StateShape]float32;
 	i := 0
-	for _, pth := range paths {
+	for _, pth := range s.paths {
 		if (pth.pathID == protocol.InitialPathID) { 
 			continue;
 		}
@@ -187,13 +189,25 @@ func (sch *scheduler) getRLState(paths map[protocol.PathID]*path) (state *tensor
 		rtt := float32(pth.rttStats.SmoothedRTT().Milliseconds())
 		cwnd :=  float32(pth.sentPacketHandler.GetCongestionWindow())
 		inflight := float32(pth.sentPacketHandler.GetBytesInFlight())
-		features[(i-1)*(StateShape/2)+0] = rtt / 100;
-		features[(i-1)*(StateShape/2)+1] = cwnd / 100000;
-		features[(i-1)*(StateShape/2)+2] = inflight / 100000;
+		features[(i-1)*StateShapeInPath+0] = rtt / 100;
+		features[(i-1)*StateShapeInPath+1] = cwnd / 100000;
+		features[(i-1)*StateShapeInPath+2] = inflight / 100000;
 	}
-
+	sid := getHTTPStreamID(s)
 	// Set state vactor
-	state = tensor.New(tensor.WithShape(agent.StateShape...), tensor.WithBacking([]float32{features[0],features[1], features[2], features[3], features[4], features[5]}))
+
+	f, _ := s.flowControlManager.SendWindowSize(sid)
+	state = tensor.New(
+		tensor.WithShape(agent.StateShape...), 
+		tensor.WithBacking([]float32{
+			features[0], 
+			features[1], 
+			features[2], 
+			features[3], 
+			features[4], 
+			features[5], 
+			float32(f) / 100000,
+		}))
 
 	// return state
 	return
@@ -206,7 +220,7 @@ func (sch *scheduler) storeStateAction(s *session, pathID protocol.PathID, pkt *
 	}
 
 	// Set state vactor
-	state := sch.getRLState(s.paths)
+	state := sch.getRLState(s)
 
 	event := RLNewEvent(pathID, packetNumber, state)
 
@@ -223,7 +237,20 @@ func (sch *scheduler) storeStateAction(s *session, pathID protocol.PathID, pkt *
 
 	// goldlog.Infof("%s 전송 [%d] %d", time.Now(), pathID, packetNumber)
 }
-
+func getHTTPStreamID(s *session) protocol.StreamID {
+	var sid protocol.StreamID = protocol.StreamID(0)
+	s.streamsMap.Iterate(func(str *stream) (bool, error) {
+		id := str.StreamID()
+		if (id != 1 && !(str.shouldSendFin() || str.finished())) {
+			if (id != 3) {
+				sid = id
+			}
+			// return false, nil
+		}
+		return true, nil
+	})
+	return sid
+}
 func (sch *scheduler) selectPathReinforcementLearning(s *session, hasRetransmission bool, hasStreamRetransmission bool, fromPth *path) *path {
 	utils.Debugf("selectPathReinforcementLearning")
 	// XXX Avoid using PathID 0 if there is more than 1 path
@@ -327,7 +354,7 @@ pathLoop:
 
 	if (GetChunkManager().segmentNumber != last_chunk) {
 		// Set state vactor
-		state := sch.getRLState(s.paths)
+		state := sch.getRLState(s)
 
 		// Perform Action
 		action, _ := agent.Action(state)
@@ -341,7 +368,7 @@ pathLoop:
 
 	if (time.Since(last_scheduling_time).Milliseconds() > 50) {
 		// Set state vactor
-		state := sch.getRLState(s.paths)
+		state := sch.getRLState(s)
 
 		// Perform Action
 		action, _ := agent.Action(state)

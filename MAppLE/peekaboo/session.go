@@ -513,7 +513,7 @@ func (s *session) handleFrames(fs []wire.Frame, p *path) error {
 			err = s.handleStreamFrame(frame)
 		case *wire.AckFrame:
 			err = s.handleAckFrame(frame)
-			s.scheduler.receivedACKForRL(s.paths, frame)
+			s.scheduler.receivedACKForRL(s, frame)
 		case *wire.ConnectionCloseFrame:
 			s.closeRemote(qerr.Error(frame.ErrorCode, frame.ReasonPhrase))
 		case *wire.GoawayFrame:
