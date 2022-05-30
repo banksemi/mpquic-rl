@@ -59,6 +59,8 @@ github.com/aunum/goro v0.0.0-20200331023613-6fd962e92fb9 h1:LZian37DB1UM736JTIo6
 github.com/aunum/goro v0.0.0-20200331023613-6fd962e92fb9/go.mod h1:+zkQtcdeh4h89LBxutgM3F46vzQBBC4aQHKbr/ttA2s=
 github.com/aunum/log v0.0.0-20200321163253-24c356e939b0 h1:pLO0OS2sfb+XfZKCPjJeqDYWPngbK786h40oAKDqgpU=
 github.com/aunum/log v0.0.0-20200321163253-24c356e939b0/go.mod h1:ze/JIQHfGKwpM8U2b39e8OH0KHt1ovEcjwPV3yfU+/c=
+github.com/aunum/log v0.0.0-20200821225356-38d2e2c8b489 h1:DKOk8ZLAPnn4P/qTwGj5x5wAMqHmaE1oL4+nl1laIu8=
+github.com/aunum/log v0.0.0-20200821225356-38d2e2c8b489/go.mod h1:ze/JIQHfGKwpM8U2b39e8OH0KHt1ovEcjwPV3yfU+/c=
 github.com/aunum/sphere v0.0.0-20200323032354-adb109813e4c h1:rheUX6V37t53dSayBA0Z12EHmKZ206P80D5tyxo8VIQ=
 github.com/aunum/sphere v0.0.0-20200323032354-adb109813e4c/go.mod h1:J/B7bBwrMlajgFvbe+tkyY0FVTJeEYujMGfhIrcmBB4=
 github.com/awalterschulze/gographviz v0.0.0-20190221210632-1e9ccb565bca h1:xwIXr1FpA2XBoohlpvgb11No/zbsh5Clm/98PWPcHVA=

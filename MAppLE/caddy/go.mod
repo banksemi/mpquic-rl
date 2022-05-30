@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	github.com/aunum/gold v0.0.0-20201022151355-225e849d893f // indirect
+	github.com/aunum/log v0.0.0-20200821225356-38d2e2c8b489 // indirect
 	github.com/bifurcation/mint v0.0.0-20210616192047-fd18df995463 // indirect
 	github.com/dustin/go-humanize v1.0.0
 	github.com/fatih/color v1.9.0 // indirect
@@ -35,6 +36,9 @@ require (
 )
 
 replace github.com/aunum/gold => ../../gold
+
 replace bitbucket.com/marcmolla/gorl => ../gorl
+
 replace github.com/bifurcation/mint => ../mint-a6080d464fb57a9330c2124ffb62f3c233e3400e
+
 replace github.com/lucas-clemente/quic-go => ../peekaboo

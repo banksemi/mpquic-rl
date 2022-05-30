@@ -54,3 +54,7 @@ func (nm *networkMonitor) getSum() (int) {
     }
 	return sum
 }
+
+func (nm *networkMonitor) clear() () {
+	nm.Deque.Clear()
+}
