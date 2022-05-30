@@ -22,7 +22,7 @@ import (
 	"github.com/aunum/gold/pkg/v1/common/num"
 )
 const StateShapeInPath int = 3
-const StateShapeSession int = 1
+const StateShapeSession int = 3
 const StateShape int = StateShapeInPath * 2 + StateShapeSession
 
 var Hyperparameters = &deepq.Hyperparameters{
@@ -156,7 +156,7 @@ func (sch *scheduler) receivedACKForRL(s *session, ackFrame *wire.AckFrame) {
 		//utcome.Action = int(uint8(pathID) - uint8(1))
 		outcome.Reward = float32(sch.nmBandwidth.getSum())
 		outcome.Done = false
-		outcome.Observation = sch.getRLState(s)	// The state changed due to the action must be entered
+		// outcome.Observation = sch.getRLState(s)	// The state changed due to the action must be entered
 
 		// goldlog.Infof("	읽기 [%d] %d %f %d -> %d", pathID, FrontData.PacketNumber, outcome.Reward, FrontData.State, outcome.Observation)
 		
@@ -166,7 +166,7 @@ func (sch *scheduler) receivedACKForRL(s *session, ackFrame *wire.AckFrame) {
 	}
 }
 
-func (sch *scheduler) getRLState(s *session) (state *tensor.Dense) {
+func (sch *scheduler) getRLState(s *session, segmentNumber int) (state *tensor.Dense) {
 	var features [StateShape]float32;
 	i := 0
 	for _, pth := range s.paths {
@@ -196,6 +196,7 @@ func (sch *scheduler) getRLState(s *session) (state *tensor.Dense) {
 	sid := getHTTPStreamID(s)
 	// Set state vactor
 
+	cm := GetChunkManager()
 	f, _ := s.flowControlManager.SendWindowSize(sid)
 	state = tensor.New(
 		tensor.WithShape(agent.StateShape...), 
@@ -207,6 +208,8 @@ func (sch *scheduler) getRLState(s *session) (state *tensor.Dense) {
 			features[4], 
 			features[5], 
 			float32(f) / 100000,
+			float32(cm.remainBytesByServer(segmentNumber)) / 100000,
+			float32(cm.remainBytesByClient(segmentNumber)) / 100000,
 		}))
 
 	// return state
@@ -220,7 +223,7 @@ func (sch *scheduler) storeStateAction(s *session, pathID protocol.PathID, pkt *
 	}
 
 	// Set state vactor
-	state := sch.getRLState(s)
+	state := sch.getRLState(s, GetChunkManager().segmentNumber)
 
 	event := RLNewEvent(pathID, packetNumber, state)
 
@@ -351,16 +354,16 @@ pathLoop:
 	if (dontsendpacket == true) {
 		return nil
 	}
-
-	if (GetChunkManager().segmentNumber != last_chunk) {
+	cm := GetChunkManager()
+	if (cm.segmentNumber != last_chunk) {
 		// Set state vactor
-		state := sch.getRLState(s)
+		state := sch.getRLState(s, cm.segmentNumber)
 
 		// Perform Action
 		action, _ := agent.Action(state)
 
 		sch.nmBandwidth.clear()
-		last_chunk = GetChunkManager().segmentNumber
+		last_chunk = cm.segmentNumber
 		last_action = action
 		last_state = state
 		last_scheduling_time = time.Now()
@@ -368,7 +371,7 @@ pathLoop:
 
 	if (time.Since(last_scheduling_time).Milliseconds() > 50) {
 		// Set state vactor
-		state := sch.getRLState(s)
+		state := sch.getRLState(s, cm.segmentNumber)
 
 		// Perform Action
 		action, _ := agent.Action(state)

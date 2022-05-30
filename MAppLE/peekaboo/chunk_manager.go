@@ -1,6 +1,7 @@
 package quic
 
 import (
+	"sync"
 	"time"
 	"regexp"
     "strconv"
@@ -22,6 +23,7 @@ type chunkManager struct {
 	chunks			         map[int] *chunkObject
 	chunks_from_stream_id    map[protocol.StreamID] *chunkObject
 	segmentNumber            int
+	mutex sync.RWMutex
 }
 
 var cm_instance *chunkManager = nil;
@@ -53,6 +55,7 @@ func (cm *chunkManager) ServeHTTP(w http.ResponseWriter, r *http.Request, size i
 			goldlog.Infof("%d 번 청크 결과 %d / %d (수신함 %d)", cm.segmentNumber, cm.chunks[cm.segmentNumber].sendBytes, cm.chunks[cm.segmentNumber].contentBytes, cm.chunks[cm.segmentNumber].receiveBytes)
 		}
 		cm.segmentNumber, _ = strconv.Atoi(matches[1])
+		cm.mutex.Lock()
 		if (cm.chunks[cm.segmentNumber] == nil) {
 			cm.chunks[cm.segmentNumber]  = &chunkObject{
 				sendBytes: 0, 
@@ -61,6 +64,7 @@ func (cm *chunkManager) ServeHTTP(w http.ResponseWriter, r *http.Request, size i
 				startTime: time.Now(),
 			}
 		}
+		cm.mutex.Unlock()
 		goldlog.Infof("청크 생성 %d",cm.segmentNumber, cm.chunks[cm.segmentNumber])
 	}
 }
@@ -96,10 +100,32 @@ func (cm *chunkManager) sendPacket(f *wire.StreamFrame, event *RLEvent) {
 }
 
 func (cm *chunkManager) receivePacket(event *RLEvent) {
+	cm.mutex.RLock()
+	defer cm.mutex.RUnlock()
 	if (event.SegmentNumber != -1) {
 		// goldlog.Infof("\t%s [수신 %d] (packet %d) %d (include %d)", time.Now(), event.SegmentNumber, event.PacketNumber, event.MaxOffset, event.DataLen)
 		if (event.MaxOffset > cm.chunks[event.SegmentNumber].receiveBytes) {
 			cm.chunks[event.SegmentNumber].receiveBytes = event.MaxOffset
 		}
+	}
+}
+
+func (cm *chunkManager) remainBytesByClient(segmentNumber int) protocol.ByteCount {
+	cm.mutex.RLock()
+	defer cm.mutex.RUnlock()
+	if (cm.chunks[segmentNumber] != nil) { 
+		return cm.chunks[segmentNumber].contentBytes - cm.chunks[segmentNumber].receiveBytes
+	} else {
+		return 1234
+	}
+}
+
+func (cm *chunkManager) remainBytesByServer(segmentNumber int) protocol.ByteCount {
+	cm.mutex.RLock()
+	defer cm.mutex.RUnlock()
+	if (cm.chunks[segmentNumber] != nil) { 
+		return cm.chunks[segmentNumber].contentBytes - cm.chunks[segmentNumber].sendBytes
+	} else {
+		return 1234
 	}
 }
