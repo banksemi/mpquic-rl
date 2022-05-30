@@ -58,6 +58,8 @@ type RLEvent struct {
 	DataLen protocol.ByteCount
 
 	MaxOffset protocol.ByteCount
+
+	SendTime time.Time
 }
 
 func RLNewMemory() *RLMemory {
@@ -74,6 +76,7 @@ func RLNewEvent(pathID protocol.PathID, packetnumber protocol.PacketNumber, stat
 		State:   state,
 		SegmentNumber: -1,
 		DataLen: 0,
+		SendTime: time.Now(),
 	}
 }
 func SetupThreadRL() {
@@ -143,26 +146,37 @@ func (sch *scheduler) receivedACKForRL(s *session, ackFrame *wire.AckFrame) {
 		sch.nmBandwidth.push(1)
 
 		// Add datalen to received chunk size
-		GetChunkManager().receivePacket(FrontData)
+		chunk_finished, duration := GetChunkManager().receivePacket(s, FrontData)
 
-		// Reward
-		var outcome *envv1.Outcome = new(envv1.Outcome)
-		if (pathID == 1) {
-			outcome.Action = 0
-		}
-		if (pathID == 2) {
-			outcome.Action = 1
-		}
-		//utcome.Action = int(uint8(pathID) - uint8(1))
-		outcome.Reward = float32(sch.nmBandwidth.getSum())
-		outcome.Done = false
-		// outcome.Observation = sch.getRLState(s)	// The state changed due to the action must be entered
+		if (chunk_finished) {
+			rtt := time.Since(FrontData.SendTime) / 2
 
-		// goldlog.Infof("	읽기 [%d] %d %f %d -> %d", pathID, FrontData.PacketNumber, outcome.Reward, FrontData.State, outcome.Observation)
-		
-		// Store event to replay buffer
-		// event := deepq.NewEvent(FrontData.State, outcome.Action, outcome)
-		// agent.Remember(event)
+			goldlog.Infof("[청크 마무리 단계1] %s - %s - %s", duration, rtt, ackFrame.DelayTime)
+			// Eliminates the effect of RTT
+			// Why RTT and not one way delay? - HTTP Request (1 owd) + Sent ACK (1 owd)
+			duration -= rtt
+
+			// Eliminates the effect of artificial ACK delay on the client
+			duration -= ackFrame.DelayTime
+			goldlog.Infof("[청크 마무리 단계2] %s", duration)
+			
+
+
+			// Reward
+			var outcome *envv1.Outcome = new(envv1.Outcome)
+			outcome.Action = last_action
+
+			// The state changed due to the action must be entered
+			outcome.Observation = sch.getRLState(s, FrontData.SegmentNumber)
+
+			outcome.Reward = float32(1000 - duration.Milliseconds())
+			outcome.Done = true
+
+			// Store event to replay buffer
+			event := deepq.NewEvent(last_state, outcome.Action, outcome)
+			agent.Remember(event)
+			goldlog.Infof("[청크 마무리] 기존 액션 %d 결과 %f 스테이트 %d -> %d", last_action, outcome.Reward, last_state, outcome.Observation)
+		}
 	}
 }
 
@@ -412,7 +426,7 @@ pathLoop:
 		last_scheduling_time = time.Now()
 
 	}
-	goldlog.Infof("%s 스케줄링 호출됨", time.Now())
+
 	// initial path
 	if (selectedPathID == protocol.PathID(0)) {
 		return selectedPath

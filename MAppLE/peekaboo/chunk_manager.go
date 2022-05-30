@@ -17,6 +17,7 @@ type chunkObject struct {
 	sendBytes protocol.ByteCount
 	receiveBytes protocol.ByteCount
 	startTime time.Time
+	finished bool
 }
 
 type chunkManager struct {
@@ -62,6 +63,7 @@ func (cm *chunkManager) ServeHTTP(w http.ResponseWriter, r *http.Request, size i
 				receiveBytes: 0,
 				contentBytes: protocol.ByteCount(size),
 				startTime: time.Now(),
+				finished: false,
 			}
 		}
 		cm.mutex.Unlock()
@@ -99,7 +101,7 @@ func (cm *chunkManager) sendPacket(f *wire.StreamFrame, event *RLEvent) {
 	}
 }
 
-func (cm *chunkManager) receivePacket(event *RLEvent) {
+func (cm *chunkManager) receivePacket(s *session, event *RLEvent) (bool, time.Duration) {
 	cm.mutex.RLock()
 	defer cm.mutex.RUnlock()
 	if (event.SegmentNumber != -1) {
@@ -107,7 +109,14 @@ func (cm *chunkManager) receivePacket(event *RLEvent) {
 		if (event.MaxOffset > cm.chunks[event.SegmentNumber].receiveBytes) {
 			cm.chunks[event.SegmentNumber].receiveBytes = event.MaxOffset
 		}
+		if (!cm.chunks[event.SegmentNumber].finished) {
+			if (cm.chunks[event.SegmentNumber].contentBytes == cm.chunks[event.SegmentNumber].receiveBytes) {
+				cm.chunks[event.SegmentNumber].finished = true
+				return true, time.Since(cm.chunks[event.SegmentNumber].startTime)
+			}
+		}
 	}
+	return false, time.Duration(0)
 }
 
 func (cm *chunkManager) remainBytesByClient(segmentNumber int) protocol.ByteCount {
