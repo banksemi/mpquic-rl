@@ -35,7 +35,7 @@ var DefaultAgentConfig = &deepq.AgentConfig{
 	PolicyConfig:    deepq.DefaultPolicyConfig,
 	Base:            agentv1.NewBase("DeepQ"),
 	StateShape:		 []int{1, StateShape},
-	ActionShape:	 []int{1, 5},
+	ActionShape:	 []int{1, 6},
 }
 
 type RLMemory struct {
@@ -403,6 +403,9 @@ pathLoop:
 	}
 	if (last_action == 4) {
 		split_p1 = 0.9
+	}
+	if (last_action == 5) {
+		return s.paths[1] // only fast
 	}
 	if num.RandF32(0.0, 1.0) < split_p1 { 
 		return s.paths[1]
