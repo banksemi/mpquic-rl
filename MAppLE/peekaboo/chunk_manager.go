@@ -44,39 +44,52 @@ func (cm *chunkManager) ServeHTTP(w http.ResponseWriter, r *http.Request, size i
 
 	if (len(matches) > 0) {
 		if (cm.chunks[cm.segmentNumber] != nil) {
+			if (cm.chunks[cm.segmentNumber].sendBytes != cm.chunks[cm.segmentNumber].contentBytes) {
+				goldlog.Infof("에러")
+			}
+			if (cm.chunks[cm.segmentNumber].sendBytes != cm.chunks[cm.segmentNumber].receiveBytes) {
+				goldlog.Infof("에러3")
+			}
 			goldlog.Infof("%d 번 청크 결과 %d / %d (수신함 %d)", cm.segmentNumber, cm.chunks[cm.segmentNumber].sendBytes, cm.chunks[cm.segmentNumber].contentBytes, cm.chunks[cm.segmentNumber].receiveBytes)
 		}
 		cm.segmentNumber, _ = strconv.Atoi(matches[1])
 		if (cm.chunks[cm.segmentNumber] == nil) {
-			cm.chunks[cm.segmentNumber] = &chunkObject{
+			cm.chunks[cm.segmentNumber]  = &chunkObject{
 				sendBytes: 0, 
 				receiveBytes: 0,
 				contentBytes: protocol.ByteCount(size),
 				startTime: time.Now(),
 			}
 		}
-		goldlog.Infof("청크 생성 %d",cm.segmentNumber,  cm.chunks[cm.segmentNumber])
+		goldlog.Infof("청크 생성 %d",cm.segmentNumber, cm.chunks[cm.segmentNumber])
 	}
 }
 
 func (cm *chunkManager) sendPacket(f *wire.StreamFrame, event *RLEvent) {
-	// goldlog.Infof("%d, %d + %d 전송", f.StreamID, f.Offset, f.DataLen())
-
+	maxOffset := f.Offset + f.DataLen()
 	if (f.StreamID == 3) {
 		return
 	}
+	goldlog.Infof("%s [전송 %d] %d + %d", time.Now(), cm.segmentNumber, f.Offset, f.DataLen())
 	if (cm.chunks[cm.segmentNumber] != nil) {
 		// Stream index mapping
 		cm.chunks_from_stream_id[f.StreamID] = cm.chunks[cm.segmentNumber]
 
-		if (f.Offset >= cm.chunks[cm.segmentNumber].sendBytes) {
+
+		event.MaxOffset = maxOffset
+
+		if (maxOffset >= cm.chunks[cm.segmentNumber].sendBytes) {
+			goldlog.Infof("%s [전송 %d]  업데이트 %d", time.Now(), cm.segmentNumber, maxOffset)
+
 			// Retransmitted packets are not considered
-			cm.chunks[cm.segmentNumber].sendBytes += f.DataLen()
+			cm.chunks[cm.segmentNumber].sendBytes = maxOffset
 			event.DataLen += f.DataLen() 
-			if (event.SegmentNumber == -1) {
+			if (event.SegmentNumber == -1 || event.SegmentNumber == cm.segmentNumber) {
 				event.SegmentNumber = cm.segmentNumber
 			} else {
-				panic("error")
+				// goldlog.Infof("에러")
+				// 한개의 패킷에,,, 두개의 서로 다른 새로운 바이트 할당?
+				goldlog.Infof("에러2")
 			}
 		}
 	}
@@ -84,6 +97,9 @@ func (cm *chunkManager) sendPacket(f *wire.StreamFrame, event *RLEvent) {
 
 func (cm *chunkManager) receivePacket(event *RLEvent) {
 	if (event.SegmentNumber != -1) {
-		cm.chunks[event.SegmentNumber].receiveBytes += event.DataLen
+		// goldlog.Infof("\t%s [수신 %d] (packet %d) %d (include %d)", time.Now(), event.SegmentNumber, event.PacketNumber, event.MaxOffset, event.DataLen)
+		if (event.MaxOffset > cm.chunks[event.SegmentNumber].receiveBytes) {
+			cm.chunks[event.SegmentNumber].receiveBytes = event.MaxOffset
+		}
 	}
 }

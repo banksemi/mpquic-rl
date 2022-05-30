@@ -54,6 +54,8 @@ type RLEvent struct {
 
 	// Data size, not retransmission
 	DataLen protocol.ByteCount
+
+	MaxOffset protocol.ByteCount
 }
 
 func RLNewMemory() *RLMemory {
