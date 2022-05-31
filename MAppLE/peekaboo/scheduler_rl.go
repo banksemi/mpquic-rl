@@ -440,8 +440,8 @@ pathLoop:
 			if (streami >= 1) {
 				event := deepq.NewEvent(last_state, outcome.Action, outcome)
 				agent.Remember(event)
-				goldlog.Infof("딜레이: %s", time.Since(last_scheduling_time).Milliseconds())
-				goldlog.Infof("남은 바이트 %d, 기존 액션 %d 결과 %f 스트림 %d,스테이트 %d -> %d", remain_data, last_action, outcome.Reward, streami, last_action, outcome.Observation)
+				// goldlog.Infof("딜레이: %s", time.Since(last_scheduling_time).Milliseconds())
+				goldlog.Infof("남은 바이트 %d, 기존 액션 %d 결과 %f 스트림 %d,스테이트 %d -> %d", remain_data, last_action, outcome.Reward, streami, last_state, outcome.Observation)
 			}
 		}
 		last_action = action
@@ -454,7 +454,6 @@ pathLoop:
 	if (selectedPathID == protocol.PathID(0)) {
 		return selectedPath
 	}
-	
 	var split_p1 float32 = 0.0
 	if (last_action == 0) {
 		split_p1 = 0.1

@@ -76,7 +76,7 @@ func (cm *chunkManager) sendPacket(f *wire.StreamFrame, event *RLEvent) {
 	if (f.StreamID == 3) {
 		return
 	}
-	goldlog.Infof("%s [전송 %d] %d + %d", time.Now(), cm.segmentNumber, f.Offset, f.DataLen())
+	// goldlog.Infof("%s [전송 %d] %d + %d", time.Now(), cm.segmentNumber, f.Offset, f.DataLen())
 	if (cm.chunks[cm.segmentNumber] != nil) {
 		// Stream index mapping
 		cm.chunks_from_stream_id[f.StreamID] = cm.chunks[cm.segmentNumber]
@@ -85,7 +85,7 @@ func (cm *chunkManager) sendPacket(f *wire.StreamFrame, event *RLEvent) {
 		event.MaxOffset = maxOffset
 
 		if (maxOffset >= cm.chunks[cm.segmentNumber].sendBytes) {
-			goldlog.Infof("%s [전송 %d]  업데이트 %d", time.Now(), cm.segmentNumber, maxOffset)
+			// goldlog.Infof("%s [전송 %d]  업데이트 %d", time.Now(), cm.segmentNumber, maxOffset)
 
 			// Retransmitted packets are not considered
 			cm.chunks[cm.segmentNumber].sendBytes = maxOffset
