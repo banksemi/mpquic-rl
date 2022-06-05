@@ -354,11 +354,6 @@ func (sch *scheduler) selectBLEST(s *session, hasRetransmission bool, hasStreamR
 
 pathLoop:
 	for pathID, pth := range s.paths {
-		// Don't block path usage if we retransmit, even on another path
-		if !hasRetransmission && !pth.SendingAllowed() {
-			continue pathLoop
-		}
-
 		// If this path is potentially failed, do not consider it for sending
 		if pth.potentiallyFailed.Get() {
 			continue pathLoop
@@ -466,11 +461,6 @@ func (sch *scheduler) selectECF(s *session, hasRetransmission bool, hasStreamRet
 
 pathLoop:
 	for pathID, pth := range s.paths {
-		// Don't block path usage if we retransmit, even on another path
-		if !hasRetransmission && !pth.SendingAllowed() {
-			continue pathLoop
-		}
-
 		// If this path is potentially failed, do not consider it for sending
 		if pth.potentiallyFailed.Get() {
 			continue pathLoop
