@@ -34,6 +34,7 @@ type Agent struct {
 
 	// Epsilon is the rate at which the agent explores vs exploits.
 	Epsilon common.Schedule
+	AddEpsilon        float32
 
 	epsilon           float32
 	updateTargetSteps int
@@ -132,6 +133,7 @@ func NewAgent(c *AgentConfig) (*Agent, error) {
 		TargetPolicy:      targetPolicy,
 		PredictPolicy:     predictPolicy,
 		Epsilon:           c.Epsilon,
+		AddEpsilon:        0,
 		epsilon:           c.Epsilon.Initial(),
 		updateTargetSteps: c.UpdateTargetSteps,
 		batchSize:         c.PolicyConfig.BatchSize,
@@ -218,7 +220,7 @@ func (a *Agent) updateTarget() error {
 func (a *Agent) Action(state *tensor.Dense) (action int, err error) {
 	a.steps++
 	a.Tracker.TrackValue("epsilon", a.epsilon)
-	if num.RandF32(0.0, 1.0) < a.epsilon {
+	if num.RandF32(0.0, 1.0) < a.epsilon + a.AddEpsilon {
 		// explore
 		action = rand.Intn(a.ActionShape[1])
 		log.Infof("Random Action %d", action)

@@ -13,7 +13,7 @@ class GoString(Structure):
 
 
 lib.ClientSetup.argtypes = [c_bool,c_bool,c_bool,GoString,GoString]
-lib.DownloadSegment.argtypes = [GoString, GoString]
+lib.DownloadSegment.argtypes = [GoString, GoString, c_uint]
 lib.CloseConnection.argtypes = []
 lib.StartLogging.argtypes = [c_uint]
 lib.StopLogging.argtypes = []
@@ -45,10 +45,10 @@ def setupFEC(useFEC, config):
 def closeConnection():
     lib.CloseConnection()
 
-def download_segment_PM(segment_url, filename=""):
+def download_segment_PM(segment_url, filename="", buffer_current_size_i=567):
     segment = GoString(segment_url.encode('ascii'), len(segment_url))
     filename_encoded = GoString(filename.encode('ascii'), len(filename))
-    return lib.DownloadSegment(segment, filename_encoded)
+    return lib.DownloadSegment(segment, filename_encoded, buffer_current_size_i)
 
 def startLogging(period):
     lib.StartLogging(period)

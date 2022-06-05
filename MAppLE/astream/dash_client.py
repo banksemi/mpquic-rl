@@ -52,6 +52,7 @@ PLAYBACK = DEFAULT_PLAYBACK
 DOWNLOAD = False
 SEGMENT_LIMIT = None
 
+buffer_current_size = 0
 
 class DashPlayback:
     """
@@ -120,6 +121,7 @@ def id_generator(id_size=6):
 
 
 def download_segment(segment_url, dash_folder, download=False):
+    global buffer_current_size
     """ Module to download the segment with one
         permanent HTTP connection.
         File is not written to disk.
@@ -132,7 +134,7 @@ def download_segment(segment_url, dash_folder, download=False):
         filename = os.path.join(dash_folder, segment_name)
         print("SAVING IN ", filename)
 
-    segment_size = glueConnection.download_segment_PM(segment_url, filename)
+    segment_size = glueConnection.download_segment_PM(segment_url, filename, buffer_current_size)
     if segment_size < 0:
         raise ValueError("invalid segment_size, connection dropped")
     return segment_size, segment_name
@@ -189,6 +191,7 @@ def start_playback_smart(dp_object, domain, playback_type=None, download=False, 
         :param video_segment_duration: Playback duratoin of each segment
         :return:
     """
+    global buffer_current_size
     glueConnection.startLogging(1000)
     # Initialize the DASH buffer
     dash_player = dash_buffer.DashPlayer(dp_object.playback_duration, video_segment_duration)
@@ -339,7 +342,12 @@ def start_playback_smart(dp_object, domain, playback_type=None, download=False, 
             #print segment_url
             #print 'file'
             #print file_identifier
+            buffer_current_size = dash_player.buffer.qsize()
+            if (buffer_current_size >= 2 and random.random() > 0.5):
+                buffer_current_size += 10 
+            
             start_time = timeit.default_timer()
+            print("debug 1", buffer_current_size)
             segment_size, segment_filename = download_segment(segment_url, file_identifier, download)
             segment_download_time = timeit.default_timer() - start_time
             previous_segment_times.append(segment_download_time)
@@ -360,6 +368,8 @@ def start_playback_smart(dp_object, domain, playback_type=None, download=False, 
             config_dash.JSON_HANDLE["segment_info"] = list()
         config_dash.JSON_HANDLE["segment_info"].append((segment_name, current_bitrate, segment_size,
                                                         segment_download_time))
+        config_dash.JSON_RESULT.append((segment_name, current_bitrate, segment_size,
+                                                        segment_download_time, buffer_current_size))
         total_downloaded += segment_size
         config_dash.LOG.info("{} : The total downloaded = {}, segment_size = {}, segment_number = {}".format(
             playback_type.upper(),

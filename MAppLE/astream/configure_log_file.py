@@ -33,5 +33,7 @@ def write_json(json_data=config_dash.JSON_HANDLE, json_file=config_dash.JSON_LOG
     :param json_file: json file
     :return: None
     """
+    
+    config_dash.JSON_HANDLE["segment_info"] = config_dash.JSON_RESULT
     with open(json_file, 'wb') as json_file_handle:
         json_file_handle.write(json.dumps(json_data).encode())

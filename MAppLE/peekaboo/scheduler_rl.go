@@ -29,7 +29,7 @@ const StateShapeSession int = 3
 const StateShape int = StateShapeInPath * 2 + StateShapeSession
 
 var Hyperparameters = &deepq.Hyperparameters{
-	Epsilon:           common.DefaultDecaySchedule(),
+	Epsilon:           common.NewDecaySchedule(0.995, 1, 0.03),
 	Gamma:             0.5,
 	UpdateTargetSteps: 10,
 	BufferSize:        10e6,
@@ -392,6 +392,11 @@ pathLoop:
 		return nil
 	}
 	cm := GetChunkManager()
+	if (cm.exploration) {
+		agent.AddEpsilon = 0.2
+	} else {
+		agent.AddEpsilon = 0
+	}
 	if (cm.segmentNumber != last_chunk) {
 		// Set state vactor
 		state := sch.getRLState(s, cm.segmentNumber)

@@ -24,6 +24,7 @@ type chunkManager struct {
 	chunks			         map[int] *chunkObject
 	chunks_from_stream_id    map[protocol.StreamID] *chunkObject
 	segmentNumber            int
+	exploration              bool
 	mutex sync.RWMutex
 }
 
@@ -33,13 +34,21 @@ func GetChunkManager() *chunkManager{
 		cm_instance = &chunkManager{
 			chunks: make(map[int]*chunkObject),
 			chunks_from_stream_id: make(map[protocol.StreamID]*chunkObject),
-			segmentNumber : -1,
+			segmentNumber: -1,
+			exploration: false,
 		}
 	}
 	return cm_instance
 }
 
 func (cm *chunkManager) ServeHTTP(w http.ResponseWriter, r *http.Request, size int64) {
+	bs := r.Header.Get("Buffer-Current-Size")
+	buffer_size, _ := strconv.Atoi(bs)
+	if (buffer_size >= 10) {
+		cm.exploration = true
+	} else {
+		cm.exploration = false
+	}
 	re, _ := regexp.Compile("chunk-stream[0-9]+-([0-9]+).m4s")
 	reqPath := r.URL.Path
 

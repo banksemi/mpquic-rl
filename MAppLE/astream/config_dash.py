@@ -21,6 +21,8 @@
 
 from time import strftime
 import os
+
+JSON_RESULT = list()
 # The configuration file for the AStream module
 # create logger
 LOG_NAME = None
@@ -50,7 +52,7 @@ JSON_HANDLE['playback_info'] = {'start_time': None,
                                 'down_shifts': 0
                                 }
 # Constants for the BASIC-2 adaptation scheme
-BASIC_THRESHOLD = 1
+BASIC_THRESHOLD = 2
 BASIC_UPPER_THRESHOLD = 1.5
 # Additional constant for the BASIC-3 adaptation scheme
 BASIC_LOWER_THRESHOLD = 0.9

@@ -91,14 +91,23 @@ func CloseConnection() {
 }
 
 //export DownloadSegment
-func DownloadSegment(segmentURL string, filename string) int {
+func DownloadSegment(segmentURL string, filename string, buffer_current_size uint) int {
 
 	if hclient == nil || !keepAlive {
 		createRemoteClient()
 	}
 
 	// Send request to the remote host
-	rsp, err := hclient.Get(segmentURL)
+	// rsp, err := hclient.Get(segmentURL)
+
+	req, err := http.NewRequest("GET", segmentURL, nil)
+    if err != nil {
+        panic(err)
+    }
+    req.Header.Add("Buffer-Current-Size", strconv.FormatUint(uint64(buffer_current_size), 10))
+    rsp, err := hclient.Do(req)
+
+	
 	if err != nil {
 		log.Println(logTag, "error : ", err)
 		return -1
