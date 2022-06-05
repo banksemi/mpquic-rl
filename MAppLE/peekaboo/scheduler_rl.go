@@ -25,7 +25,7 @@ import (
 	g "gorgonia.org/gorgonia"
 )
 const StateShapeInPath int = 3
-const StateShapeSession int = 3
+const StateShapeSession int = 4
 const StateShape int = StateShapeInPath * 2 + StateShapeSession
 
 var Hyperparameters = &deepq.Hyperparameters{
@@ -247,6 +247,7 @@ func (sch *scheduler) getRLState(s *session, segmentNumber int) (state *tensor.D
 			float32(f) / 100000,
 			float32(cm.remainBytesByServer(segmentNumber)) / 100000,
 			float32(cm.remainBytesByClient(segmentNumber)) / 100000,
+			float32(cm.getElapsedTime().Milliseconds()) / 1000,
 		}))
 
 	// return state

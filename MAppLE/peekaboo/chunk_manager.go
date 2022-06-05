@@ -147,3 +147,12 @@ func (cm *chunkManager) remainBytesByServer(segmentNumber int) protocol.ByteCoun
 		return 1234
 	}
 }
+func (cm *chunkManager) getElapsedTime() time.Duration {
+	cm.mutex.RLock()
+	defer cm.mutex.RUnlock()
+	if (cm.chunks[cm.segmentNumber] != nil) { 
+		return time.Since(cm.chunks[cm.segmentNumber].startTime)
+	} else {
+		return 0
+	}
+}
