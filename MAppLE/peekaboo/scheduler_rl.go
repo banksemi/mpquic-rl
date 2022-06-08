@@ -29,9 +29,9 @@ const StateShapeSession int = 4
 const StateShape int = StateShapeInPath * 2 + StateShapeSession
 
 var Hyperparameters = &deepq.Hyperparameters{
-	Epsilon:           common.NewDecaySchedule(0.995, 1, 0.03),
+	Epsilon:           common.NewDecaySchedule(0.998, 1, 0.00),
 	Gamma:             0.5,
-	UpdateTargetSteps: 10,
+	UpdateTargetSteps: 100,
 	BufferSize:        10e6,
 }
 
@@ -191,8 +191,11 @@ func (sch *scheduler) receivedACKForRL(s *session, ackFrame *wire.AckFrame) {
 
 			// The state changed due to the action must be entered
 			outcome.Observation = sch.getRLState(s, FrontData.SegmentNumber)
-
-			outcome.Reward = float32(1000 - duration.Milliseconds())
+			
+			outcome.Reward = float32(1000) - float32 (duration.Milliseconds()) * 1.5
+			if (outcome.Reward < 0) {
+				outcome.Reward = 0
+			}
 			outcome.Done = true
 
 			// Store event to replay buffer
@@ -411,8 +414,8 @@ pathLoop:
 		last_state = state
 		last_scheduling_time = time.Now()
 	}
-
-	if (time.Since(last_scheduling_time).Milliseconds() > 50) {
+	etime := time.Since(last_scheduling_time).Milliseconds()
+	if (etime > 50) {
 		// Set state vactor
 		state := sch.getRLState(s, cm.segmentNumber)
 
@@ -462,19 +465,27 @@ pathLoop:
 	}
 	var split_p1 float32 = 0.0
 	if (last_action == 0) {
-		split_p1 = 0.1
-	}
-	if (last_action == 1) {
 		split_p1 = 0.25
 	}
-	if (last_action == 2) {
+	if (last_action == 1) {
 		split_p1 = 0.5
 	}
-	if (last_action == 3) {
+	if (last_action == 2) {
 		split_p1 = 0.75
 	}
+	if (last_action == 3) {
+		if (etime < 50 * 0.3) {
+			return selectedPath
+		} else {
+			return s.paths[1]
+		}
+	}
 	if (last_action == 4) {
-		split_p1 = 0.9
+		if (etime < 50 * 0.6) {
+			return selectedPath
+		} else {
+			return s.paths[1]
+		}
 	}
 	if (last_action == 5) {
 		return s.paths[1] // only fast
