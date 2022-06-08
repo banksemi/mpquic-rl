@@ -416,9 +416,10 @@ pathLoop:
 	if secondBestPath == nil {
 		return nil
 	}
+	sid := getHTTPStreamID(s)
 	cwndBest := uint64(bestPath.sentPacketHandler.GetCongestionWindow())
 	FirstCo := uint64(protocol.DefaultTCPMSS) * uint64(secondLowerRTT) * (cwndBest*2*uint64(lowerRTT) + uint64(secondLowerRTT) - uint64(lowerRTT))
-	BSend, _ := s.flowControlManager.SendWindowSize(protocol.StreamID(5))
+	BSend, _ := s.flowControlManager.SendWindowSize(protocol.StreamID(sid))
 	SecondCo := 2 * 1 * uint64(lowerRTT) * uint64(lowerRTT) * (uint64(BSend) - (uint64(secondBestPath.sentPacketHandler.GetBytesInFlight())+uint64(protocol.DefaultTCPMSS)))
 
 	if (FirstCo > SecondCo) {
