@@ -397,7 +397,7 @@ pathLoop:
 	}
 	cm := GetChunkManager()
 	if (cm.exploration) {
-		agent.AddEpsilon = 0.2
+		agent.AddEpsilon = 0.1
 	} else {
 		agent.AddEpsilon = 0
 	}
