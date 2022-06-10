@@ -200,6 +200,7 @@ func (a *Agent) Learn() error {
 // updateTarget copies the weights from the online network to the target network on the provided interval.
 func (a *Agent) updateTarget() error {
 	if a.steps%a.updateTargetSteps == 0 {
+		a.steps++
 		log.Debugf("updating target model - current steps %v target update %v", a.steps, a.updateTargetSteps)
 		err := a.Policy.(*model.Sequential).CloneLearnablesTo(a.TargetPolicy.(*model.Sequential))
 		if err != nil {
