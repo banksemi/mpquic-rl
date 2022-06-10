@@ -81,6 +81,8 @@ type RLEvent struct {
 	DataLen protocol.ByteCount
 
 	MaxOffset protocol.ByteCount
+	Offset protocol.ByteCount
+	Size protocol.ByteCount
 
 	SendTime time.Time
 }
@@ -169,7 +171,7 @@ func (sch *scheduler) receivedACKForRL(s *session, ackFrame *wire.AckFrame) {
 		sch.nmBandwidth.push(1)
 
 		// Add datalen to received chunk size
-		chunk_finished, duration := GetChunkManager().receivePacket(s, FrontData)
+		chunk_finished, bytes, duration := GetChunkManager().receivePacket(s, FrontData)
 
 		if (chunk_finished) {
 			rtt := time.Since(FrontData.SendTime) / 2
@@ -181,7 +183,7 @@ func (sch *scheduler) receivedACKForRL(s *session, ackFrame *wire.AckFrame) {
 
 			// Eliminates the effect of artificial ACK delay on the client
 			duration -= ackFrame.DelayTime
-			goldlog.Infof("[청크 마무리 단계2] %s", duration)
+			goldlog.Infof("[청크 마무리 단계2] %s %s", duration, bytes)
 			
 
 
@@ -396,7 +398,7 @@ pathLoop:
 		return nil
 	}
 	cm := GetChunkManager()
-	if (cm.exploration) {
+	if (cm.getExploration()) {
 		agent.AddEpsilon = 0.1
 	} else {
 		agent.AddEpsilon = 0
