@@ -194,7 +194,8 @@ func (sch *scheduler) receivedACKForRL(s *session, ackFrame *wire.AckFrame) {
 			// The state changed due to the action must be entered
 			outcome.Observation = sch.getRLState(s, FrontData.SegmentNumber)
 			
-			outcome.Reward = float32(1000) - float32 (duration.Milliseconds()) * 1.5
+			outcome.Reward = 100 + (float32(1000) - float32(duration.Milliseconds()) )  * float32(bytes) / 1000000.0
+			// outcome.Reward *= 1.5
 			if (outcome.Reward < 0) {
 				outcome.Reward = 0
 			}
