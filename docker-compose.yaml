@@ -1,7 +1,7 @@
 services:
   mininet:
     build:
-      context: ./docker
+      dockerfile: docker/Dockerfile
     container_name: mininet
     privileged: true
     cap_add:

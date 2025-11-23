@@ -2,7 +2,7 @@ from ctypes import *
 import os.path
 
 current_dir_path = os.path.dirname(os.path.realpath(__file__))
-lib = cdll.LoadLibrary(current_dir_path + "/proxy_module.so")
+lib = cdll.LoadLibrary("/build/proxy_module.so")
 
 class GoSlice(Structure):
     _fields_ = [("data", POINTER(c_void_p)), 

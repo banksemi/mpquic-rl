@@ -1,3 +1,20 @@
+FROM ubuntu:bionic AS builder
+RUN apt-get update && apt-get install -y curl gcc libhdf5-serial-dev
+ENV GOLANG_VERSION 1.16.5
+RUN curl -LO https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz && tar -C /usr/local -xzf go${GOLANG_VERSION}.linux-amd64.tar.gz
+ENV PATH=$PATH:/usr/local/go/bin
+
+WORKDIR /app
+COPY ./MAppLE/caddy ./MAppLE/caddy
+COPY ./gold gold
+COPY ./MAppLE/gorl ./MAppLE/gorl
+COPY ./MAppLE/mint-a6080d464fb57a9330c2124ffb62f3c233e3400e ./MAppLE/mint-a6080d464fb57a9330c2124ffb62f3c233e3400e
+COPY ./MAppLE/peekaboo ./MAppLE/peekaboo
+RUN cd MAppLE/caddy/caddy && go build -o caddy_custom
+
+COPY ./MAppLE/proxy_module ./MAppLE/proxy_module
+RUN cd MAppLE/proxy_module && go build -o proxy_module.so -buildmode=c-shared proxy_module.go
+
 FROM ubuntu:bionic
 USER root
 RUN rm -rf /usr/local/bin/mn /usr/local/bin/mnexec \
@@ -23,7 +40,7 @@ RUN rm -rf /usr/local/bin/mn /usr/local/bin/mnexec \
        bc \
        psmisc \
     && update-rc.d openvswitch-switch defaults
-COPY requirements.txt requirements.txt
+COPY docker/requirements.txt requirements.txt
 RUN pip install --upgrade pip setuptools && pip install -r requirements.txt
 RUN apt-get install software-properties-common -y
 RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
@@ -33,7 +50,7 @@ RUN add-apt-repository \
    stable"
 RUN apt-get install docker-ce docker-ce-cli -y
 WORKDIR /var/www
-COPY www/* /var/www
+COPY docker/www/* /var/www
 # Set the locale
 RUN sed -i -e 's/# en_US ISO-8859-1/en_US ISO-8859-1/' /etc/locale.gen && \
     locale-gen
@@ -56,4 +73,8 @@ from IPython.lib import passwd \n\
 password = passwd("mpquic") \n\
 c.NotebookApp.password = password' >> /root/.jupyter/jupyter_notebook_config.py
 
+
+COPY --from=builder /app/MAppLE/caddy/caddy/caddy_custom /build/caddy_custom
+COPY --from=builder /app/MAppLE/proxy_module/proxy_module.so /build
+RUN chmod +x /build/caddy_custom
 CMD service docker start && service openvswitch-switch start && jupyter notebook --ip 0.0.0.0 --allow-root
