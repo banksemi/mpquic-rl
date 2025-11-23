@@ -22,12 +22,9 @@ RUN rm -rf /usr/local/bin/mn /usr/local/bin/mnexec \
        vim \
        bc \
        psmisc \
-    && python -m pip install --upgrade pip \
-    && python -m pip install jupyter \
-    && python -m pip install matplotlib=="2.0.2" \
-    && python -m pip install keras-rl \
-    && python -m pip install --upgrade --user tensorflow==1.13.1 \
     && update-rc.d openvswitch-switch defaults
+COPY requirements.txt requirements.txt
+RUN pip install --upgrade pip setuptools && pip install -r requirements.txt
 RUN apt-get install software-properties-common -y
 RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
 RUN add-apt-repository \
