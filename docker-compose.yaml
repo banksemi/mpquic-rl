@@ -11,10 +11,9 @@ services:
     volumes:
       - /lib/modules:/lib/modules
       - ./lib-docker:/var/lib/docker
-      - ./logs:/logs
-      - ./MAppLE:/MAppLE
-      - ./docker:/docker
       - ./docker/output:/App/output
       - ./docker/certs:/certs
+      - ./docker/logs:/logs
+      - ./docker/mininettest:/docker/mininettest
     extra_hosts:
       - "quic.clemente.io:10.0.0.20"

@@ -89,4 +89,8 @@ COPY --from=builder /app/MAppLE/proxy_module/proxy_module.so /build
 RUN chmod +x /build/caddy_custom
 
 COPY --from=prepare_video /videos /videos
+
+COPY ./MAppLE/dash /dash
+COPY ./MAppLE/astream /astream
+WORKDIR /docker/mininettest
 CMD service docker start && service openvswitch-switch start && jupyter notebook --ip 0.0.0.0 --allow-root

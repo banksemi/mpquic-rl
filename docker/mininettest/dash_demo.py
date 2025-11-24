@@ -2,15 +2,14 @@ import time
 import argparse
 from basicTopo import setup_environment
 
-SERVER_CMD = "cd /MAppLE/dash/ && ./caddy -quic -mp -scheduler rl -fec --fecConfig win-xor"
-CERTPATH = "--certpath /App/quic/quic_go_certs"
+SERVER_CMD = "cd /dash && /build/caddy_custom -quic -mp -fec --fecConfig win-xor"
 SCH = "-scheduler %s"
 ARGS = "-bind :6121 -www /var/www/"
 END = "> /logs/server.logs 2>&1"
 
 BASIC_DELAY = 10
 
-CLIENT_CMD = "cd /logs && python3 /MAppLE/astream/dash_client.py -q -mp -m https://10.0.0.20:4242/manifest.mpd -s rtt > /logs/client.logs 2>&1"
+CLIENT_CMD = "cd /logs && python3 /astream/dash_client.py -q -mp -m https://10.0.0.20:4242/manifest.mpd -s rtt > /logs/client.logs 2>&1"
 
 TCP_SERVER_CMD = "cd /var/www && python -m SimpleHTTPServer 80 &"
 TCP_CLIENT_CMD = "curl -s -o /dev/null 10.0.0.20/demo &"
@@ -52,7 +51,7 @@ def exec_test(server_cmd, rtt, tcp_traffic):
         delta = 20
         client.sendInt()
         client.waiting = False
-	server_pcap.terminate()
+        server_pcap.terminate()
 
         network.stop()
         time.sleep(1)
@@ -68,7 +67,7 @@ def exec_test(server_cmd, rtt, tcp_traffic):
 
 
 def do_training(sch, rtt, tcp_b):
-    server_cmd = " ".join([SERVER_CMD, END])
+    server_cmd = " ".join([SERVER_CMD, SCH % sch, END])
 
     exec_test(server_cmd, rtt, tcp_b)
 
