@@ -6,13 +6,13 @@
 
 # Unsecure listener for debugging purposes
 http://:4040 {
-    root video1s/
+    root /videos/video1s/
     log stdout
 }
 
 # Secure listener, required for TLS and QUIC connections
 https://:4242 {
-    root video1s/
+    root /videos/video1s/
     tls cert.pem privkey.pem
     log stdout
 }

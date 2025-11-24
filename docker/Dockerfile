@@ -15,6 +15,16 @@ RUN cd MAppLE/caddy/caddy && go build -o caddy_custom
 COPY ./MAppLE/proxy_module ./MAppLE/proxy_module
 RUN cd MAppLE/proxy_module && go build -o proxy_module.so -buildmode=c-shared proxy_module.go
 
+FROM jrottenberg/ffmpeg:5-ubuntu AS prepare_video
+RUN apt-get update && apt-get install -y wget
+WORKDIR /app
+ENV SRC "jellyfish.mkv"
+COPY ./MAppLE/dash/source.url /app/source.url
+RUN wget $(cat /app/source.url) -O $SRC
+
+COPY ./MAppLE/dash/prepare_video.sh /app/prepare_video.sh
+RUN /app/prepare_video.sh 1
+
 FROM ubuntu:bionic
 USER root
 RUN rm -rf /usr/local/bin/mn /usr/local/bin/mnexec \
@@ -77,4 +87,6 @@ c.NotebookApp.password = password' >> /root/.jupyter/jupyter_notebook_config.py
 COPY --from=builder /app/MAppLE/caddy/caddy/caddy_custom /build/caddy_custom
 COPY --from=builder /app/MAppLE/proxy_module/proxy_module.so /build
 RUN chmod +x /build/caddy_custom
+
+COPY --from=prepare_video /videos /videos
 CMD service docker start && service openvswitch-switch start && jupyter notebook --ip 0.0.0.0 --allow-root
