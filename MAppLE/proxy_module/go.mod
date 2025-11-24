@@ -18,7 +18,7 @@ require (
 	gorgonia.org/gorgonia v0.9.9 // indirect
 )
 
-replace github.com/lucas-clemente/quic-go => ../quic-go
+replace github.com/lucas-clemente/quic-go => ../../quic-go
 
 replace bitbucket.com/marcmolla/gorl => ../gorl
 

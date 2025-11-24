@@ -80,6 +80,6 @@ docker exec -it mininet python dash_demo.py --scheduler rl
 - **네트워크 속성**: 하위 폴더인 scripts의 `tc_client.bash`, `tc_s1.bash`을 수정하여 Packet loss, Bandwidth, Delay 등을 설정할 수 있습니다.
 
 ### MPQUIC 스케줄러
-스케줄러는 `/MAppLE/quic-go/scheduler.go`에 구현되어있습니다.
+스케줄러는 `/quic-go/scheduler.go`에 구현되어있습니다.
 
-자세한 내용은 `/MAppLE/quic-go/scheduler.go:selectPath` 에서 각 스케줄러의 참조를 확인할 수 있습니다.
+자세한 내용은 `/quic-go/scheduler.go:selectPath` 에서 각 스케줄러의 참조를 확인할 수 있습니다.

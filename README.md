@@ -79,6 +79,6 @@ The results are saved in /docker/logs.
 - **Network Properties**: You can configure Packet loss, Bandwidth, Delay, etc., by modifying `tc_client.bash` and `tc_s1.bash` in the scripts subfolder.
 
 ### MPQUIC Scheduler
-The scheduler is implemented in `/MAppLE/quic-go/scheduler.go`.
+The scheduler is implemented in `/quic-go/scheduler.go`.
 
-For details, you can check the references for each scheduler at `/MAppLE/quic-go/scheduler.go:selectPath`.
+For details, you can check the references for each scheduler at `/quic-go/scheduler.go:selectPath`.

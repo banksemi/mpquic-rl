@@ -9,7 +9,7 @@ COPY ./MAppLE/caddy ./MAppLE/caddy
 COPY ./gold gold
 COPY ./MAppLE/gorl ./MAppLE/gorl
 COPY ./MAppLE/mint-a6080d464fb57a9330c2124ffb62f3c233e3400e ./MAppLE/mint-a6080d464fb57a9330c2124ffb62f3c233e3400e
-COPY ./MAppLE/quic-go ./MAppLE/quic-go
+COPY ./quic-go ./quic-go
 RUN cd MAppLE/caddy/caddy && go build -o caddy_custom
 
 COPY ./MAppLE/proxy_module ./MAppLE/proxy_module

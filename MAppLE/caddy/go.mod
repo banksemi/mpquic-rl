@@ -41,4 +41,4 @@ replace bitbucket.com/marcmolla/gorl => ../gorl
 
 replace github.com/bifurcation/mint => ../mint-a6080d464fb57a9330c2124ffb62f3c233e3400e
 
-replace github.com/lucas-clemente/quic-go => ../quic-go
+replace github.com/lucas-clemente/quic-go => ../../quic-go
