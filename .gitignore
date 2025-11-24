@@ -1,3 +1,6 @@
 #This folder is used by DinD (Docker in Docker) to use the host's filesystem.
 lib-docker/*
 logs/*
+
+.idea
+docker/certs/*.pem

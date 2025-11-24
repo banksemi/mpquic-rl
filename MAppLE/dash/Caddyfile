@@ -13,6 +13,6 @@ http://:4040 {
 # Secure listener, required for TLS and QUIC connections
 https://:4242 {
     root /videos/video1s/
-    tls cert.pem privkey.pem
+    tls /certs/cert.pem /certs/privkey.pem
     log stdout
 }
