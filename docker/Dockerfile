@@ -49,6 +49,7 @@ RUN rm -rf /usr/local/bin/mn /usr/local/bin/mnexec \
        vim \
        bc \
        psmisc \
+       tcpdump \
     && update-rc.d openvswitch-switch defaults
 COPY docker/requirements.txt requirements.txt
 RUN pip install --upgrade pip setuptools && pip install -r requirements.txt

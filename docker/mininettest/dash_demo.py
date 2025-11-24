@@ -1,3 +1,5 @@
+import subprocess
+import sys
 import time
 import argparse
 from basicTopo import setup_environment
@@ -21,7 +23,7 @@ def setup():
     return net
 
 
-def exec_test(server_cmd, rtt, tcp_traffic):
+def exec_test(server_cmd, tcp_traffic):
     network = setup()
 
     s1 = network.get("s1")
@@ -34,14 +36,16 @@ def exec_test(server_cmd, rtt, tcp_traffic):
     server.sendCmd(server_cmd)
 
     time.sleep(2)
-    s1.cmd("./scripts/set_delay.bash %d" % int((BASIC_DELAY + rtt) / 2))
-    client.cmd("./scripts/client_set_delay.bash %d" % int((BASIC_DELAY + rtt) / 2))
-
     if tcp_traffic:
         client.cmd(TCP_CLIENT_CMD)
 
     start = time.time()
-    server_pcap = server.popen('tcpdump -w /MappLE-main/docker_logs/h1_dump.pcap')
+    server_pcap = server.popen(
+        'tcpdump -w /logs/h1_dump.pcap',
+        stdout=sys.stdout,
+        stderr=sys.stderr
+    )
+
     client.sendCmd(CLIENT_CMD)
     # Timeout of 20 seconds for detecting crashing tests
     output = client.monitor(timeoutms=20000)
@@ -66,18 +70,17 @@ def exec_test(server_cmd, rtt, tcp_traffic):
     server.waiting = False
 
 
-def do_training(sch, rtt, tcp_b):
+def do_training(sch, tcp_b):
     server_cmd = " ".join([SERVER_CMD, SCH % sch, END])
 
-    exec_test(server_cmd, rtt, tcp_b)
+    exec_test(server_cmd, tcp_b)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Executes a test with defined scheduler')
     parser.add_argument('--scheduler', dest="sch", help="Scheduler (rtt, random)", required=True)
-    parser.add_argument('--rtt', type=int, dest="rtt", help="rtt primary leg")
     parser.add_argument('--background-tcp', dest="tcp_background", action="store_true",
                         help='generates TCP background traffic during tests')
 
     args = parser.parse_args()
-    do_training(args.sch, args.rtt, args.tcp_background)
+    do_training(args.sch, args.tcp_background)
