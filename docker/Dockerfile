@@ -50,16 +50,10 @@ RUN rm -rf /usr/local/bin/mn /usr/local/bin/mnexec \
        bc \
        psmisc \
        tcpdump \
+       python3 \
     && update-rc.d openvswitch-switch defaults
 COPY docker/requirements.txt requirements.txt
 RUN pip install --upgrade pip setuptools && pip install -r requirements.txt
-RUN apt-get install software-properties-common -y
-RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
-RUN add-apt-repository \
-   "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
-   $(lsb_release -cs) \
-   stable"
-RUN apt-get install docker-ce docker-ce-cli -y
 WORKDIR /var/www
 COPY docker/www/* /var/www
 # Set the locale
@@ -94,4 +88,4 @@ COPY --from=prepare_video /videos /videos
 COPY ./MAppLE/dash /dash
 COPY ./MAppLE/astream /astream
 WORKDIR /docker/mininettest
-CMD service docker start && service openvswitch-switch start && jupyter notebook --ip 0.0.0.0 --allow-root
+CMD service openvswitch-switch start && jupyter notebook --ip 0.0.0.0 --allow-root
